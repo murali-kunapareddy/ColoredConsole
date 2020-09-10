@@ -2,10 +2,10 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
-    <RootNamespace>abcd</RootNamespace>
+    <RootNamespace>bcd</RootNamespace>
     <Authors>Murali Krishna KUNAPAREDDY</Authors>
     <Company>aBCDe</Company>
-    <PackageId>abcd.ColoredConsole</PackageId>
+    <PackageId>bcd.ColoredConsole</PackageId>
     <Product>aBCDe's ColoredConsole</Product>
     <Description>A revised aBCDe's ColoredConsole helpful to build c# console applications with colored text and boxes</Description>
     <Copyright>2018, 2019,2020</Copyright>
