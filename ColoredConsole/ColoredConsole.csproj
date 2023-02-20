@@ -4,15 +4,16 @@
     <TargetFramework>netstandard2.0</TargetFramework>
     <RootNamespace>bcd</RootNamespace>
     <Authors>Murali Krishna KUNAPAREDDY</Authors>
-    <Company>aBCDe</Company>
-    <PackageId>bcd.ColoredConsole</PackageId>
+    <Company>BCD</Company>
+    <PackageId>ColoredConsole.NET</PackageId>
     <Product>aBCDe's ColoredConsole</Product>
     <Description>A revised aBCDe's ColoredConsole helpful to build c# console applications with colored text and boxes</Description>
-    <Copyright>2018, 2019,2020</Copyright>
-    <Version>0.0.1</Version>
+    <Copyright>2023</Copyright>
+    <Version>1.0.1</Version>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReleaseNotes>Revised initial release</PackageReleaseNotes>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <Title>ColoredConsole.NET</Title>
   </PropertyGroup>
   <ItemGroup>
     <Content Include="ReadMe.txt">

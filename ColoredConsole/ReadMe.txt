@@ -7,6 +7,7 @@
 *** Initial Version
 ***********************
 *** 2023-02-20
-*** Minor Changes
+*** DrawSeparator updated
+***********************
 
 
