@@ -8,19 +8,22 @@ namespace bcd
 {
     public class ColoredConsole
     {
-        static readonly char DBL_TL = '╔';
-        static readonly char DBL_TR = '╗';
-        static readonly char DBL_LR = '║';
-        static readonly char DBL_LJ = '╠';
-        static readonly char DBL_RJ = '╣';
-        static readonly char DBL_TB = '═';
-        static readonly char DBL_TJ = '╦';
-        static readonly char DBL_BJ = '╩';
-        static readonly char DBL_CJ = '╬';
-        static readonly char DBL_BL = '╚';
-        static readonly char DBL_BR = '╝';
+        static readonly char DOT_TB = '·';  // 250 - top & bottom interpunct
+        static readonly char DSH_TB = '-';  //     - top & bottom interpunct
         //
-        static readonly char SGL_TL = '┌';   //218
+        static readonly char DBL_TL = '╔';  // double top left
+        static readonly char DBL_TR = '╗';  // double top right
+        static readonly char DBL_LR = '║';  // 186 - double left & right
+        static readonly char DBL_LJ = '╠';  // double left joiner
+        static readonly char DBL_RJ = '╣';  // double right joiner
+        static readonly char DBL_TB = '═';  // double top & bottom
+        static readonly char DBL_TJ = '╦';  // double top joiner
+        static readonly char DBL_BJ = '╩';  // double bottom joiner
+        static readonly char DBL_CJ = '╬';  // double cross joiner
+        static readonly char DBL_BL = '╚';  // double bottom left
+        static readonly char DBL_BR = '╝';  // double bottom right
+        //
+        static readonly char SGL_TL = '┌';  // 218
         static readonly char SGL_TR = '┐';
         static readonly char SGL_LR = '│';
         static readonly char SGL_LJ = '├';
@@ -32,22 +35,24 @@ namespace bcd
         static readonly char SGL_BL = '└';
         static readonly char SGL_BR = '┘';   //217
         //
-        static readonly char MIX_DTSJ = '╤'; //209
-        static readonly char MIX_DBSJ = '╧'; //207
-        static readonly char MIX_DLSJ = '╟'; //199
-        static readonly char MIX_DRSJ = '╢'; //182
-        static readonly char MIX_STDJ = '╥'; //210
-        static readonly char MIX_SBDJ = '╨'; //208
-        static readonly char MIX_SLDJ = '╞'; //198
-        static readonly char MIX_SRDJ = '╡'; //181
+        static readonly char MIX_DTSJ = '╤'; //209  double top single joiner
+        static readonly char MIX_DBSJ = '╧'; //207  double bottom single joiner
+        static readonly char MIX_DLSJ = '╟'; //199  double left single joiner
+        static readonly char MIX_DRSJ = '╢'; //182  double right single joiner
+        static readonly char MIX_STDJ = '╥'; //210  single top double joiner
+        static readonly char MIX_SBDJ = '╨'; //208  single bottom double joiner
+        static readonly char MIX_SLDJ = '╞'; //198  single left double joiner
+        static readonly char MIX_SRDJ = '╡'; //181  single right double joiner
 
-        public int ConsoleWidth { get; set; }
-        public LineStyle ConsoleLineStyle { get; set; }
-        public TextPosition ConsoleTextPosition { get; set; }
-        public TextStyle ConsoleTextStyle { get; set; }
-        public ConsoleColor ConsoleBackColor { get; set; }
-        public ConsoleColor ConsoleForeColor { get; set; }
-        public ConsoleColor ConsoleLineColor { get; set; }
+        public int DefaultWidth { get; set; }
+        public LineStyle DefaultLineStyle { get; set; }
+        public LineStyle DefaultVerticalLineStyle { get; set; }
+        public LineStyle DefaultHorizontalLineStyle { get; set; }
+        public TextPosition DefaultTextPosition { get; set; }
+        public TextStyle DefaultTextStyle { get; set; }
+        public ConsoleColor DefaultBackColor { get; set; }
+        public ConsoleColor DefaultForeColor { get; set; }
+        public ConsoleColor DefaultLineColor { get; set; }
         public string LogFile { get; set; }
         public bool LogEmail { get; set; }
         private int AvailableWidth { get; set; }
@@ -57,21 +62,25 @@ namespace bcd
 
         public ColoredConsole(int consoleWidth = 79,
             LineStyle lineStyle = LineStyle.Double,
+            LineStyle verticalLineStyle = LineStyle.Double,
+            LineStyle horizontalLineStyle = LineStyle.Single,
             TextPosition textPosition = TextPosition.Left,
             TextStyle textStyle = TextStyle.None,
             ConsoleColor backColor = ConsoleColor.Black,
             ConsoleColor foreColor = ConsoleColor.White,
             ConsoleColor lineColor = ConsoleColor.Yellow)
         {
-            this.ConsoleWidth = consoleWidth;
-            this.ConsoleLineStyle = lineStyle;
-            this.ConsoleTextPosition = textPosition;
-            this.ConsoleTextStyle = textStyle;
-            this.ConsoleBackColor = ConsoleColor.Black;
-            this.ConsoleForeColor = ConsoleColor.White;
-            this.ConsoleLineColor = ConsoleColor.Yellow;
+            this.DefaultWidth = consoleWidth;
+            this.DefaultLineStyle = lineStyle;
+            this.DefaultVerticalLineStyle = verticalLineStyle;
+            this.DefaultHorizontalLineStyle = horizontalLineStyle;
+            this.DefaultTextPosition = textPosition;
+            this.DefaultTextStyle = textStyle;
+            this.DefaultBackColor = ConsoleColor.Black;
+            this.DefaultForeColor = ConsoleColor.White;
+            this.DefaultLineColor = ConsoleColor.Yellow;
             //
-            this.AvailableWidth = this.ConsoleWidth - 4;
+            this.AvailableWidth = this.DefaultWidth - 4;
             //
             /*
             if (ConfigurationManager.AppSettings["LogEnabled"] == "YES")
@@ -115,12 +124,12 @@ namespace bcd
 
         public void DrawTopLine()
         {
-            drawTopLine(ConsoleLineStyle, ConsoleBackColor, ConsoleLineColor);
+            drawTopLine(DefaultLineStyle, DefaultBackColor, DefaultLineColor);
         }
 
         public void DrawTopLine(LineStyle lineStyle)
         {
-            drawTopLine(lineStyle, ConsoleBackColor, ConsoleLineColor);
+            drawTopLine(lineStyle, DefaultBackColor, DefaultLineColor);
         }
 
         public void DrawTopLine(LineStyle lineStyle, ConsoleColor backColor, ConsoleColor lineColor)
@@ -130,12 +139,12 @@ namespace bcd
 
         public void DrawBottomLine()
         {
-            drawBottomLine(ConsoleLineStyle, ConsoleBackColor, ConsoleLineColor);
+            drawBottomLine(DefaultLineStyle, DefaultBackColor, DefaultLineColor);
         }
 
         public void DrawBottomLine(LineStyle lineStyle)
         {
-            drawBottomLine(lineStyle, ConsoleBackColor, ConsoleLineColor);
+            drawBottomLine(lineStyle, DefaultBackColor, DefaultLineColor);
         }
 
         public void DrawBottomLine(LineStyle lineStyle, ConsoleColor backColor, ConsoleColor lineColor)
@@ -143,19 +152,39 @@ namespace bcd
             drawBottomLine(lineStyle, backColor, lineColor);
         }
 
-        public void DrawSeparator(LineStyle verticalLineStyle, LineStyle horizongalLineStyle)
+        public void DrawSeparator()
         {
-            if (verticalLineStyle == LineStyle.Single && horizongalLineStyle == LineStyle.Single)
-                drawVSHSLine();
-            else if (verticalLineStyle == LineStyle.Double && horizongalLineStyle == LineStyle.Double)
-                drawVDHDLine();
-            else if (verticalLineStyle == LineStyle.Single && horizongalLineStyle == LineStyle.Double)
-                drawVSHDLine();
-            else
-                drawVDHSLine();
+            DrawSeparator(DefaultVerticalLineStyle, DefaultHorizontalLineStyle);
         }
 
-        public void DrawBox(string message, LineStyle lineStyle, TextPosition textPosition, int tabStop, TextStyle textStyle, ConsoleColor backColor, ConsoleColor foreColor, ConsoleColor lineColor)
+        public void DrawSeparator(LineStyle verticalLineStyle, LineStyle horizongalLineStyle)
+        {
+            if (verticalLineStyle == LineStyle.Single && horizongalLineStyle == LineStyle.Dotted)
+                draw_V_SGL_H_DOT_Line();
+            else if (verticalLineStyle == LineStyle.Single && horizongalLineStyle == LineStyle.Dashed)
+                draw_V_SGL_H_DSH_Line();
+            else if (verticalLineStyle == LineStyle.Single && horizongalLineStyle == LineStyle.Single)
+                draw_V_SGL_H_SGL_Line();
+            else if (verticalLineStyle == LineStyle.Single && horizongalLineStyle == LineStyle.Double)
+                draw_V_SGL_H_DBL_Line();
+            else if (verticalLineStyle == LineStyle.Double && horizongalLineStyle == LineStyle.Dotted)
+                draw_V_DBL_H_DOT_Line();
+            else if (verticalLineStyle == LineStyle.Double && horizongalLineStyle == LineStyle.Dashed)
+                draw_V_DBL_H_DSH_Line();
+            else if (verticalLineStyle == LineStyle.Double && horizongalLineStyle == LineStyle.Single)
+                draw_V_DBL_H_SGL_Line();
+            else if (verticalLineStyle == LineStyle.Double && horizongalLineStyle == LineStyle.Double)
+                draw_V_DBL_H_DBL_Line();
+        }
+
+        public void DrawBox(string message,
+            LineStyle lineStyle = LineStyle.Double,
+            TextPosition textPosition = TextPosition.Center,
+            int tabStop = 0,
+            TextStyle textStyle = TextStyle.SpacedCaps,
+            ConsoleColor backColor = ConsoleColor.Black,
+            ConsoleColor foreColor = ConsoleColor.DarkRed,
+            ConsoleColor lineColor = ConsoleColor.Yellow)
         {
             DrawTopLine(lineStyle, backColor, lineColor);
             Write(message, lineStyle, textPosition, tabStop, textStyle, backColor, foreColor, lineColor);
@@ -230,11 +259,11 @@ namespace bcd
             switch (ls)
             {
                 case LineStyle.Single:
-                    Console.WriteLine($"{SGL_TL}{new string(SGL_TB, ConsoleWidth - 2)}{SGL_TR}");
+                    Console.WriteLine($"{SGL_TL}{new string(SGL_TB, DefaultWidth - 2)}{SGL_TR}");
                     break;
                 case LineStyle.Double:
                 default:
-                    Console.WriteLine($"{DBL_TL}{new string(DBL_TB, ConsoleWidth - 2)}{DBL_TR}");
+                    Console.WriteLine($"{DBL_TL}{new string(DBL_TB, DefaultWidth - 2)}{DBL_TR}");
                     break;
             }
             Console.ResetColor();
@@ -247,45 +276,70 @@ namespace bcd
             switch (ls)
             {
                 case LineStyle.Single:
-                    Console.WriteLine($"{SGL_BL}{new string(SGL_TB, ConsoleWidth - 2)}{SGL_BR}");
+                    Console.WriteLine($"{SGL_BL}{new string(SGL_TB, DefaultWidth - 2)}{SGL_BR}");
                     break;
                 case LineStyle.Double:
                 default:
-                    Console.WriteLine($"{DBL_BL}{new string(DBL_TB, ConsoleWidth - 2)}{DBL_BR}");
+                    Console.WriteLine($"{DBL_BL}{new string(DBL_TB, DefaultWidth - 2)}{DBL_BR}");
                     break;
             }
             Console.ResetColor();
         }
 
-        private void drawVDHSLine()
+        private void draw_V_SGL_H_DOT_Line()
         {
-            Console.BackgroundColor = ConsoleBackColor;
-            Console.ForegroundColor = ConsoleLineColor;
-            Console.WriteLine($"{MIX_DLSJ}{new string(SGL_TB, ConsoleWidth - 2)}{MIX_DRSJ}");
+            Console.BackgroundColor = DefaultBackColor;
+            Console.ForegroundColor = DefaultLineColor;
+            Console.WriteLine($"{SGL_LR}{new string(DOT_TB, DefaultWidth - 2)}{SGL_LR}");
             Console.ResetColor();
         }
-
-        private void drawVSHDLine()
+        private void draw_V_SGL_H_DSH_Line()
         {
-            Console.BackgroundColor = ConsoleBackColor;
-            Console.ForegroundColor = ConsoleLineColor;
-            Console.WriteLine($"{MIX_SLDJ}{new string(DBL_TB, ConsoleWidth - 2)}{MIX_SRDJ}");
+            Console.BackgroundColor = DefaultBackColor;
+            Console.ForegroundColor = DefaultLineColor;
+            Console.WriteLine($"{SGL_LR}{new string(DSH_TB, DefaultWidth - 2)}{SGL_LR}");
             Console.ResetColor();
         }
-
-        private void drawVDHDLine()
+        private void draw_V_SGL_H_SGL_Line()
         {
-            Console.BackgroundColor = ConsoleBackColor;
-            Console.ForegroundColor = ConsoleLineColor;
-            Console.WriteLine($"{DBL_LJ}{new string(DBL_TB, ConsoleWidth - 2)}{DBL_RJ}");
+            Console.BackgroundColor = DefaultBackColor;
+            Console.ForegroundColor = DefaultLineColor;
+            Console.WriteLine($"{SGL_LJ}{new string(SGL_TB, DefaultWidth - 2)}{SGL_LJ}");
             Console.ResetColor();
         }
-
-        private void drawVSHSLine()
+        private void draw_V_SGL_H_DBL_Line()
         {
-            Console.BackgroundColor = ConsoleBackColor;
-            Console.ForegroundColor = ConsoleLineColor;
-            Console.WriteLine($"{SGL_LJ}{new string(SGL_TB, ConsoleWidth - 2)}{SGL_RJ}");
+            Console.BackgroundColor = DefaultBackColor;
+            Console.ForegroundColor = DefaultLineColor;
+            Console.WriteLine($"{MIX_SLDJ}{new string(DBL_TB, DefaultWidth - 2)}{MIX_SRDJ}");
+            Console.ResetColor();
+        }
+        private void draw_V_DBL_H_DOT_Line()
+        {
+            Console.BackgroundColor = DefaultBackColor;
+            Console.ForegroundColor = DefaultLineColor;
+            Console.WriteLine($"{DBL_LR}{new string(DOT_TB, DefaultWidth - 2)}{DBL_LR}");
+            Console.ResetColor();
+        }
+        private void draw_V_DBL_H_DSH_Line()
+        {
+            Console.BackgroundColor = DefaultBackColor;
+            Console.ForegroundColor = DefaultLineColor;
+            Console.WriteLine($"{DBL_LR}{new string(DSH_TB, DefaultWidth - 2)}{DBL_LR}");
+            Console.ResetColor();
+        }
+        private void draw_V_DBL_H_SGL_Line()
+        {
+            Console.BackgroundColor = DefaultBackColor;
+            Console.ForegroundColor = DefaultLineColor;
+            Console.WriteLine($"{MIX_DLSJ}{new string(SGL_TB, DefaultWidth - 2)}{MIX_DRSJ}");
+            Console.ResetColor();
+        }
+        private void draw_V_DBL_H_DBL_Line()
+        {
+            Console.BackgroundColor = DefaultBackColor;
+            Console.ForegroundColor = DefaultLineColor;
+            Console.WriteLine($"{DBL_LJ}{new string(DBL_TB, DefaultWidth - 2)}{DBL_RJ}");
             Console.ResetColor();
         }
 
@@ -395,8 +449,10 @@ namespace bcd
 
         public enum LineStyle
         {
-            Single = 1,
-            Double = 2
+            Dotted = 1, // DOT
+            Dashed = 2, // DSH
+            Single = 3, // SGL
+            Double = 4  // DBL
         }
 
         public enum TextPosition
