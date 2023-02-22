@@ -13,6 +13,8 @@ namespace Test
             cc.Write("Header");
             cc.DrawSeparator();
             cc.Write("This is body text");
+            var x = cc.Prompt("What's your name? ");
+            cc.Write(x);
             cc.DrawSeparator(LineStyle.Double, LineStyle.Dotted);
             cc.Write("This is footer text");
             cc.DrawSeparator(LineStyle.Double, LineStyle.Dashed);

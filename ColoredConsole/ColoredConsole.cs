@@ -191,6 +191,21 @@ namespace bcd
             DrawBottomLine(lineStyle, backColor, lineColor);
         }
 
+        public string Prompt(string message,
+            LineStyle lineStyle = LineStyle.Double,
+            TextPosition textPosition = TextPosition.Left,
+            int tabStop = 0,
+            TextStyle textStyle = TextStyle.None,
+            ConsoleColor backColor = ConsoleColor.Black,
+            ConsoleColor foreColor = ConsoleColor.White,
+            ConsoleColor lineColor = ConsoleColor.Yellow)
+        {
+            writeLine(message, lineStyle, textPosition, tabStop, textStyle, backColor, foreColor, lineColor);
+            string retval = ReadLine();
+            WriteLogMessage(message, tabStop);
+            return retval;
+        }
+
         public void Write(string message,
             LineStyle lineStyle = LineStyle.Double,
             TextPosition textPosition = TextPosition.Left,
@@ -375,6 +390,34 @@ namespace bcd
                     writeLine(bitMsg, ls, tp, tab, ts, bc, fc, lc);
                 }
             }
+            //
+        }
+
+        private string ReadLine(
+            LineStyle ls = LineStyle.Double,
+            TextPosition tp = TextPosition.Left,
+            int tab = 0,
+            TextStyle ts = TextStyle.None,
+            ConsoleColor bc = ConsoleColor.Black,
+            ConsoleColor fc = ConsoleColor.Green,
+            ConsoleColor lc = ConsoleColor.Yellow)
+        {
+            char lr;
+            //
+            Console.BackgroundColor = bc;
+            Console.ForegroundColor = lc;
+            if (ls == LineStyle.Double) lr = DBL_LR; else lr = SGL_LR;
+            Console.Write($"{lr} ");
+            Console.ForegroundColor = fc;
+            Console.Write(formatMessage("? ", tp, tab + 1, ts));
+            Console.ForegroundColor = lc;
+            Console.WriteLine($" {lr}");
+            // put the cursor back
+            Console.SetCursorPosition((tab + 1) * 4 + 4, Console.CursorTop - 1);
+            Console.ForegroundColor = fc;
+            var retval = Console.ReadLine();
+            Console.ResetColor();
+            return retval;
             //
         }
 
