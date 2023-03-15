@@ -122,6 +122,7 @@ namespace bcd
 
         #region ***** PUBLIC METHODS *****
 
+        #region ***** TOP LINE ******
         public void DrawTopLine()
         {
             drawTopLine(DefaultLineStyle, DefaultBackColor, DefaultLineColor);
@@ -136,6 +137,10 @@ namespace bcd
         {
             drawTopLine(lineStyle, backColor, lineColor);
         }
+
+        #endregion
+
+        #region ***** BOTTOM LINE ******
 
         public void DrawBottomLine()
         {
@@ -152,6 +157,9 @@ namespace bcd
             drawBottomLine(lineStyle, backColor, lineColor);
         }
 
+        #endregion
+
+        #region ***** SEPARATOR ******
         public void DrawSeparator()
         {
             DrawSeparator(DefaultVerticalLineStyle, DefaultHorizontalLineStyle);
@@ -177,6 +185,9 @@ namespace bcd
                 draw_V_DBL_H_DBL_Line();
         }
 
+        #endregion
+
+        #region ***** BOX ******
         public void DrawBox(string message,
             LineStyle lineStyle = LineStyle.Double,
             TextPosition textPosition = TextPosition.Center,
@@ -187,10 +198,13 @@ namespace bcd
             ConsoleColor lineColor = ConsoleColor.Yellow)
         {
             DrawTopLine(lineStyle, backColor, lineColor);
-            Write(message, lineStyle, textPosition, tabStop, textStyle, backColor, foreColor, lineColor);
+            WriteLine(message, lineStyle, textPosition, tabStop, textStyle, backColor, foreColor, lineColor);
             DrawBottomLine(lineStyle, backColor, lineColor);
         }
 
+        #endregion
+
+        #region ***** PROMPT ******
         public string Prompt(string message,
             LineStyle lineStyle = LineStyle.Double,
             TextPosition textPosition = TextPosition.Left,
@@ -205,8 +219,23 @@ namespace bcd
             WriteLogMessage(message, tabStop);
             return retval;
         }
+        #endregion
 
+        #region ***** WRITE MESSAGE + LOG ******
         public void Write(string message,
+            LineStyle lineStyle = LineStyle.Double,
+            TextPosition textPosition = TextPosition.Left,
+            int tabStop = 0,
+            TextStyle textStyle = TextStyle.None,
+            ConsoleColor backColor = ConsoleColor.Black,
+            ConsoleColor foreColor = ConsoleColor.White,
+            ConsoleColor lineColor = ConsoleColor.Yellow)
+        {
+            write(message, lineStyle, textPosition, tabStop, textStyle, backColor, foreColor, lineColor);
+            WriteLogMessage(message, tabStop);
+        }
+
+        public void WriteLine(string message,
             LineStyle lineStyle = LineStyle.Double,
             TextPosition textPosition = TextPosition.Left,
             int tabStop = 0,
@@ -262,6 +291,7 @@ namespace bcd
             //    }
             //}
         }
+        #endregion
 
         #endregion
 
@@ -358,6 +388,44 @@ namespace bcd
             Console.ResetColor();
         }
 
+        private void write(string msg,
+            LineStyle ls = LineStyle.Double,
+            TextPosition tp = TextPosition.Left,
+            int tab = 0,
+            TextStyle ts = TextStyle.None,
+            ConsoleColor bc = ConsoleColor.Black,
+            ConsoleColor fc = ConsoleColor.White,
+            ConsoleColor lc = ConsoleColor.Yellow)
+        {
+            msg = msg.Trim();
+            char lr;
+            if (msg.Length <= AvailableWidth)
+            {
+                Console.BackgroundColor = bc;
+                Console.ForegroundColor = lc;
+                if (ls == LineStyle.Double) lr = DBL_LR; else lr = SGL_LR;
+                Console.Write($"{lr} ");
+                Console.ForegroundColor = fc;
+                Console.Write(formatMessage(msg, tp, tab, ts));
+                Console.ForegroundColor = lc;
+                Console.WriteLine($" {lr}");
+                // below two lines added 
+                var top = Console.CursorTop;
+                Console.SetCursorPosition(0, top - 1);
+                //
+                Console.ResetColor();
+            }
+            else
+            {
+                // split the big message into small messages that fit inside the console width
+                var splitMsg = SplitByLength(msg, AvailableWidth);
+                foreach (string bitMsg in splitMsg)
+                {
+                    writeLine(bitMsg, ls, tp, tab, ts, bc, fc, lc);
+                }
+            }
+            //
+        }
         private void writeLine(string msg,
             LineStyle ls = LineStyle.Double,
             TextPosition tp = TextPosition.Left,

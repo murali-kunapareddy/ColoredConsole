@@ -13,5 +13,8 @@
 *** Prompt method added.
 	Used to display prompt and collects user response into a string
 ------------
+[2023-03-15]
+*** Progress Bar added.	
+------------
 
 
