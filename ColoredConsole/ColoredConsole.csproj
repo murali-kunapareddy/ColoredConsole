@@ -1,25 +1,23 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
-    <RootNamespace>bcd</RootNamespace>
-    <Authors>Murali Krishna KUNAPAREDDY</Authors>
-    <Company>BCD</Company>
-    <PackageId>ColoredConsole.NET</PackageId>
-    <Product>aBCDe's ColoredConsole</Product>
-    <Description>A revised aBCDe's ColoredConsole helpful to build c# console applications with colored text and boxes</Description>
-    <Copyright>2023</Copyright>
-    <Version>1.0.4</Version>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageReleaseNotes>Revised initial release</PackageReleaseNotes>
-    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <Title>ColoredConsole.NET</Title>
-  </PropertyGroup>
-  <ItemGroup>
-    <Content Include="ReadMe.txt">
-      <Pack>true</Pack>
-      <PackagePath>\</PackagePath>
-    </Content>
-  </ItemGroup>
+	<PropertyGroup>
+		<TargetFramework>netstandard2.0</TargetFramework>
+		<RootNamespace>bcd</RootNamespace>
+		<Authors>Murali Krishna KUNAPAREDDY</Authors>
+		<Company>BCD</Company>
+		<PackageId>ColoredConsole.NET</PackageId>
+		<Product>aBCDe's ColoredConsole</Product>
+		<Description>A revised aBCDe's ColoredConsole helpful to build c# console applications with colored text and boxes</Description>
+		<Copyright>2023</Copyright>
+		<Version>1.0.4</Version>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
+		<PackageLicenseExpression>MIT</PackageLicenseExpression>
+		<PackageReleaseNotes>Revised initial release</PackageReleaseNotes>
+		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+		<Title>ColoredConsole.NET</Title>
+	</PropertyGroup>
+	<ItemGroup>
+		<None Include="README.md" Pack="true" PackagePath="\"/>
+	</ItemGroup>
 
 </Project>
