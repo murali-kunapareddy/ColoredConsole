@@ -8,6 +8,8 @@ namespace Test
         static void Main(string[] args)
         {
             var cc = new ColoredConsole();
+            cc.LogEnable = true;
+            cc.WriteLine("Logging is ON");
             cc.DrawBox("This is test");
             cc.DrawTopLine();
             cc.WriteLine("Header");
@@ -15,7 +17,7 @@ namespace Test
             cc.WriteLine("This is body text");
             var x = cc.Prompt("What's your name? ");
             cc.WriteLine(x);            
-            cc.DrawSeparator(LineStyle.Double, LineStyle.Single);
+            cc.DrawSeparator(LineStyle.Double, LineStyle.Single);            
             cc.WriteLine("Performing some task... ");
             using (var progress = new ProgressBar())
             {

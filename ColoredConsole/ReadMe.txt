@@ -16,5 +16,8 @@
 [2023-03-15]
 *** Progress Bar added.	
 ------------
+[2023-03-26]
+*** Log file process updated.	
+------------
 
 

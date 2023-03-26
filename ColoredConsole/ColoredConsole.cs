@@ -53,7 +53,8 @@ namespace bcd
         public ConsoleColor DefaultBackColor { get; set; }
         public ConsoleColor DefaultForeColor { get; set; }
         public ConsoleColor DefaultLineColor { get; set; }
-        public string LogFile { get; set; }
+        public bool LogEnable { get; set; }
+        public string LogFolder { get; set; } = "Log";
         public bool LogEmail { get; set; }
         private int AvailableWidth { get; set; }
         private StringBuilder sbMailBody = new StringBuilder();
@@ -250,11 +251,21 @@ namespace bcd
 
         public void WriteLogMessage(string msg, int tab = 0)
         {
-            if (LogFile != null && LogFile != string.Empty)
+            if (LogEnable)
             {
+                // generate file name
+                string logFile = $"{DateTime.Now.ToString("yy-MM-dd")}.log";
+                string logFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, LogFolder);
+                string logPath = string.Empty;
+                // create log folder
+                Directory.CreateDirectory(logFolder);
+                // generate log path
+                    logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory,LogFolder, logFile);
+                //
+                FileInfo fi = new FileInfo(logPath);
                 // This text is always added, making the file longer over time
                 // if it is not deleted.
-                using (StreamWriter sw = File.AppendText(LogFile))
+                using (FileStream fs = File.Open(logPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite))
                 {
                     if (msg == "=")
                     {
@@ -264,32 +275,11 @@ namespace bcd
                     {
                         msg = $"[{DateTime.Now.ToString("HH:mm:ss.fff")}] - {msg}{Environment.NewLine}";
                     }
-
-                    sw.Write(msg.PadLeft(tab * 4));
+                    //sw.WriteLine(msg.PadLeft(tab * 4));
+                    byte[] info = new UTF8Encoding(true).GetBytes(msg);
+                    fs.Write(info, 0, info.Length);
                 }
             }
-
-            //if (LogFile != null && LogFile != string.Empty)
-            //{
-            //    FileInfo fi = new FileInfo(LogFile);
-
-            //    using (FileStream fs = File.Open(LogFile, FileMode.OpenOrCreate,FileAccess.ReadWrite, FileShare.ReadWrite))
-            //    {
-
-            //        if (msg == "=")
-            //        {
-            //            msg = $"========== {DateTime.Now.ToString("dd MMMM yyyy HH:mm")} =========={Environment.NewLine}";
-            //        }
-            //        else
-            //        {
-            //            msg = $"[{DateTime.Now.ToString("HH:mm:ss.fff")}] - {msg}{Environment.NewLine}";
-            //        }
-            //        //sw.WriteLine(msg.PadLeft(tab * 4));
-            //        byte[] info = new UTF8Encoding(true).GetBytes(msg);
-            //        fs.Write(info, 0, info.Length);
-
-            //    }
-            //}
         }
         #endregion
 
