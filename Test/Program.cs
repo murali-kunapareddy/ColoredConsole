@@ -9,12 +9,19 @@ namespace Test
         {
             var cc = new ColoredConsole();
             cc.LogEnable = true;
+            cc.LogFolder = "gol";
             cc.WriteLine("Logging is ON");
             cc.DrawBox("This is test");
             cc.DrawTopLine();
             cc.WriteLine("Header");
             cc.DrawSeparator();
             cc.WriteLine("This is body text");
+            cc.DrawSeparator("Numabered Bullets");
+            cc.WriteLine("This is sirst line with auto number on. ",autoNumber: true);
+            cc.WriteLine("This is second line with auto number on + lengthier text to wrap into two lines.",autoNumber: true);
+            cc.WriteLine("This is third lin again with auto number on.",autoNumber: true);
+            cc.DrawSeparator();
+            cc.WriteLine();
             var x = cc.Prompt("What's your name? ");
             cc.WriteLine(x);            
             cc.DrawSeparator(LineStyle.Double, LineStyle.Single);            
@@ -29,6 +36,7 @@ namespace Test
                     // a = 1;
                 }
             }
+            
             cc.DrawSeparator(LineStyle.Double, LineStyle.Double);
             var y = cc.Prompt("Testing prompt to it's max. capability by asking log question. Did you get this message prompt properly? ");
             cc.WriteLine(y);
@@ -37,6 +45,7 @@ namespace Test
             cc.DrawSeparator(LineStyle.Double, LineStyle.Dashed);
             cc.WriteLine("This is sub footer text");
             cc.DrawBottomLine();
+
         }
     }
 }

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace bcd
@@ -53,6 +54,7 @@ namespace bcd
         public ConsoleColor DefaultBackColor { get; set; }
         public ConsoleColor DefaultForeColor { get; set; }
         public ConsoleColor DefaultLineColor { get; set; }
+        public int AutoNumberCounter { get; set; } = 0;
         public bool LogEnable { get; set; }
         public string LogFolder { get; set; } = "Log";
         public bool LogEmail { get; set; }
@@ -77,9 +79,9 @@ namespace bcd
             this.DefaultHorizontalLineStyle = horizontalLineStyle;
             this.DefaultTextPosition = textPosition;
             this.DefaultTextStyle = textStyle;
-            this.DefaultBackColor = ConsoleColor.Black;
-            this.DefaultForeColor = ConsoleColor.White;
-            this.DefaultLineColor = ConsoleColor.Yellow;
+            this.DefaultBackColor = backColor;
+            this.DefaultForeColor = foreColor;
+            this.DefaultLineColor = lineColor;
             //
             this.AvailableWidth = this.DefaultWidth - 4;
             //
@@ -161,10 +163,7 @@ namespace bcd
         #endregion
 
         #region ***** SEPARATOR ******
-        public void DrawSeparator()
-        {
-            DrawSeparator(DefaultVerticalLineStyle, DefaultHorizontalLineStyle);
-        }
+        public void DrawSeparator() => DrawSeparator(DefaultVerticalLineStyle, DefaultHorizontalLineStyle);
 
         public void DrawSeparator(LineStyle verticalLineStyle, LineStyle horizongalLineStyle)
         {
@@ -188,18 +187,56 @@ namespace bcd
 
         #endregion
 
+        #region ***** SECTION HEAD *****
+        public void DrawSeparator(string message,
+            LineStyle sectionLineStyle = LineStyle.Single,
+            TextPosition textPosition = TextPosition.Left,
+            int tabStop = 1,
+            bool autoNumber = false,
+            TextStyle textStyle = TextStyle.Caps,
+            ConsoleColor backColor = ConsoleColor.Black,
+            ConsoleColor foreColor = ConsoleColor.DarkRed,
+            ConsoleColor lineColor = ConsoleColor.Yellow)
+        {
+            switch (sectionLineStyle)
+            {
+                case LineStyle.Single:
+                    message = $"{new string(SGL_TB, tabStop * 4)} {message} {new string(SGL_TB, AvailableWidth - (message.Length + tabStop * 4) - 2)}";
+                    break;
+                case LineStyle.Double:
+                    message = message.PadLeft(tabStop * 4, DBL_TB);
+                    message = message.PadRight(AvailableWidth - message.Length, DBL_TB);
+                    break;
+                case LineStyle.Dotted:
+                    message = message.PadLeft(tabStop * 4, DOT_TB);
+                    message = message.PadRight(AvailableWidth - message.Length, DOT_TB);
+                    break;
+                case LineStyle.Dashed:
+                    message = message.PadLeft(tabStop * 4, DSH_TB);
+                    message = message.PadRight(AvailableWidth - message.Length, DSH_TB);
+                    break;
+                default: break;
+            }
+            WriteLine();
+            WriteLine(message, DefaultLineStyle, textPosition, 0, autoNumber, textStyle, backColor, foreColor, lineColor);
+            WriteLine();
+        }
+
+        #endregion
+
         #region ***** BOX ******
         public void DrawBox(string message,
             LineStyle lineStyle = LineStyle.Double,
             TextPosition textPosition = TextPosition.Center,
             int tabStop = 0,
+            bool autoNumber = false,
             TextStyle textStyle = TextStyle.SpacedCaps,
             ConsoleColor backColor = ConsoleColor.Black,
             ConsoleColor foreColor = ConsoleColor.DarkRed,
             ConsoleColor lineColor = ConsoleColor.Yellow)
         {
             DrawTopLine(lineStyle, backColor, lineColor);
-            WriteLine(message, lineStyle, textPosition, tabStop, textStyle, backColor, foreColor, lineColor);
+            WriteLine(message, lineStyle, textPosition, tabStop, autoNumber, textStyle, backColor, foreColor, lineColor);
             DrawBottomLine(lineStyle, backColor, lineColor);
         }
 
@@ -210,12 +247,13 @@ namespace bcd
             LineStyle lineStyle = LineStyle.Double,
             TextPosition textPosition = TextPosition.Left,
             int tabStop = 0,
+            bool autoNumber = false,
             TextStyle textStyle = TextStyle.None,
             ConsoleColor backColor = ConsoleColor.Black,
             ConsoleColor foreColor = ConsoleColor.White,
             ConsoleColor lineColor = ConsoleColor.Yellow)
         {
-            writeLine(message, lineStyle, textPosition, tabStop, textStyle, backColor, foreColor, lineColor);
+            writeLine(message, lineStyle, textPosition, tabStop, autoNumber, textStyle, backColor, foreColor, lineColor);
             string retval = ReadLine();
             WriteLogMessage(message, tabStop);
             return retval;
@@ -227,25 +265,27 @@ namespace bcd
             LineStyle lineStyle = LineStyle.Double,
             TextPosition textPosition = TextPosition.Left,
             int tabStop = 0,
+            bool autoNumber = false,
             TextStyle textStyle = TextStyle.None,
             ConsoleColor backColor = ConsoleColor.Black,
             ConsoleColor foreColor = ConsoleColor.White,
             ConsoleColor lineColor = ConsoleColor.Yellow)
         {
-            write(message, lineStyle, textPosition, tabStop, textStyle, backColor, foreColor, lineColor);
+            write(message, lineStyle, textPosition, tabStop, autoNumber, textStyle, backColor, foreColor, lineColor);
             WriteLogMessage(message, tabStop);
         }
 
-        public void WriteLine(string message,
+        public void WriteLine(string message = "",
             LineStyle lineStyle = LineStyle.Double,
             TextPosition textPosition = TextPosition.Left,
             int tabStop = 0,
+            bool autoNumber = false,
             TextStyle textStyle = TextStyle.None,
             ConsoleColor backColor = ConsoleColor.Black,
             ConsoleColor foreColor = ConsoleColor.White,
             ConsoleColor lineColor = ConsoleColor.Yellow)
         {
-            writeLine(message, lineStyle, textPosition, tabStop, textStyle, backColor, foreColor, lineColor);
+            writeLine(message, lineStyle, textPosition, tabStop, autoNumber, textStyle, backColor, foreColor, lineColor);
             WriteLogMessage(message, tabStop);
         }
 
@@ -260,7 +300,7 @@ namespace bcd
                 // create log folder
                 Directory.CreateDirectory(logFolder);
                 // generate log path
-                    logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory,LogFolder, logFile);
+                logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, LogFolder, logFile);
                 //
                 FileInfo fi = new FileInfo(logPath);
                 // This text is always added, making the file longer over time
@@ -382,6 +422,7 @@ namespace bcd
             LineStyle ls = LineStyle.Double,
             TextPosition tp = TextPosition.Left,
             int tab = 0,
+            bool an = false,
             TextStyle ts = TextStyle.None,
             ConsoleColor bc = ConsoleColor.Black,
             ConsoleColor fc = ConsoleColor.White,
@@ -411,7 +452,7 @@ namespace bcd
                 var splitMsg = SplitByLength(msg, AvailableWidth);
                 foreach (string bitMsg in splitMsg)
                 {
-                    writeLine(bitMsg, ls, tp, tab, ts, bc, fc, lc);
+                    writeLine(bitMsg, ls, tp, tab, an, ts, bc, fc, lc);
                 }
             }
             //
@@ -420,12 +461,21 @@ namespace bcd
             LineStyle ls = LineStyle.Double,
             TextPosition tp = TextPosition.Left,
             int tab = 0,
+            bool an = false,
             TextStyle ts = TextStyle.None,
             ConsoleColor bc = ConsoleColor.Black,
             ConsoleColor fc = ConsoleColor.White,
             ConsoleColor lc = ConsoleColor.Yellow)
         {
             msg = msg.Trim();
+            // update string with auto number if tp = left
+            if (an && tp == TextPosition.Left)
+            {
+                AutoNumberCounter++;
+                var anText = $"{AutoNumberCounter}.";
+                anText = anText.PadRight(4);
+                msg = $"{anText}{msg}";
+            }
             char lr;
             if (msg.Length <= AvailableWidth)
             {
@@ -443,9 +493,21 @@ namespace bcd
             {
                 // split the big message into small messages that fit inside the console width
                 var splitMsg = SplitByLength(msg, AvailableWidth);
+                bool isFirst = true;
                 foreach (string bitMsg in splitMsg)
                 {
-                    writeLine(bitMsg, ls, tp, tab, ts, bc, fc, lc);
+                    bool anTemp = false;
+                    if (an)
+                    {
+                        if (isFirst)
+                            writeLine(bitMsg, ls, tp, tab, anTemp, ts, bc, fc, lc);
+                        else
+                            writeLine(bitMsg, ls, tp, tab + 1, anTemp, ts, bc, fc, lc);
+                    }
+                    else
+                        writeLine(bitMsg, ls, tp, tab, anTemp, ts, bc, fc, lc);
+                    isFirst = false;
+
                 }
             }
             //

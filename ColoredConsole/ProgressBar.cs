@@ -14,7 +14,7 @@ namespace bcd
     public class ProgressBar : IDisposable, IProgress<double>
     {
         ColoredConsole cc = new ColoredConsole();
-        private const int blockCount = 10;
+        private const int blockCount = 50;
         private readonly TimeSpan animationInterval = TimeSpan.FromSeconds(1.0 / 8);
         private const string animation = @"|/-\";
 
@@ -76,7 +76,7 @@ namespace bcd
             lock (timer)
             {
                 disposed = true;
-                cc.WriteLine("[##########] 100%\t", tabStop: 1, foreColor: ConsoleColor.Green);
+                cc.WriteLine($"[{new string('#', blockCount)}] 100%\t", tabStop: 1, foreColor: ConsoleColor.Green);
                 Console.CursorVisible = true;
             }
         }
