@@ -5,9 +5,10 @@ namespace Test
 {
     internal class Program
     {
+        static ColoredConsole cc = new ColoredConsole();
         static void Main(string[] args)
         {
-            var cc = new ColoredConsole();
+            
             cc.LogEnable = true;
             cc.LogFolder = "gol";
             cc.WriteLine("Logging is ON");

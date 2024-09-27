@@ -8,16 +8,16 @@
 		<PackageId>ColoredConsole.NET</PackageId>
 		<Product>aBCDe's ColoredConsole</Product>
 		<Description>A revised aBCDe's ColoredConsole helpful to build c# console applications with colored text and boxes</Description>
-		<Copyright>2023</Copyright>
-		<Version>1.0.4</Version>
+		<Copyright>2024</Copyright>
+		<Version>1.0.5</Version>
 		<PackageReadmeFile>README.md</PackageReadmeFile>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
-		<PackageReleaseNotes>Revised initial release</PackageReleaseNotes>
+		<PackageReleaseNotes>Section Header, Progress Bar, Auto Numbering features were added</PackageReleaseNotes>
 		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
 		<Title>ColoredConsole.NET</Title>
 	</PropertyGroup>
 	<ItemGroup>
-		<None Include="README.md" Pack="true" PackagePath="\"/>
+		<None Include="README.md" Pack="true" PackagePath="\" />
 	</ItemGroup>
 
 </Project>
