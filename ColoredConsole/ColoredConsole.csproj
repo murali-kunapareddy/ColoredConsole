@@ -2,17 +2,17 @@
 
 	<PropertyGroup>
 		<TargetFramework>netstandard2.0</TargetFramework>
-		<RootNamespace>bcd</RootNamespace>
+		<RootNamespace>Bcd</RootNamespace>
 		<Authors>Murali Krishna KUNAPAREDDY</Authors>
 		<Company>BCD</Company>
 		<PackageId>ColoredConsole.NET</PackageId>
 		<Product>aBCDe's ColoredConsole</Product>
-		<Description>A revised aBCDe's ColoredConsole helpful to build c# console applications with colored text and boxes</Description>
-		<Copyright>2024</Copyright>
-		<Version>1.0.5</Version>
+		<Description>A richly-formatted console library for C# — colored text, bordered boxes, section headers, separators, prompts, progress bars, and file logging.</Description>
+		<Copyright>2024-2026</Copyright>
+		<Version>2.0.0</Version>
 		<PackageReadmeFile>README.md</PackageReadmeFile>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
-		<PackageReleaseNotes>Section Header, Progress Bar, Auto Numbering features were added</PackageReleaseNotes>
+		<PackageReleaseNotes>v2.0.0 — Breaking changes: namespace renamed Bcd; Theme and WriteOptions types added; DrawSectionHeader replaces DrawSeparator(string); IDisposable logging; word-aware wrapping; bug fixes.</PackageReleaseNotes>
 		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
 		<Title>ColoredConsole.NET</Title>
 	</PropertyGroup>

@@ -1,52 +1,76 @@
-﻿using bcd;
-using static bcd.ColoredConsole;
+using System;
+using System.Threading;
+using Bcd;
 
 namespace Test
 {
     internal class Program
     {
-        static ColoredConsole cc = new ColoredConsole();
         static void Main(string[] args)
         {
-            
-            cc.LogEnable = true;
-            cc.LogFolder = "gol";
-            cc.WriteLine("Logging is ON");
-            cc.DrawBox("This is test");
-            cc.DrawTopLine();
-            cc.WriteLine("Header");
-            cc.DrawSeparator();
-            cc.WriteLine("This is body text");
-            cc.DrawSeparator("Numabered Bullets");
-            cc.WriteLine("This is sirst line with auto number on. ",autoNumber: true);
-            cc.WriteLine("This is second line with auto number on + lengthier text to wrap into two lines.",autoNumber: true);
-            cc.WriteLine("This is third lin again with auto number on.",autoNumber: true);
-            cc.DrawSeparator();
-            cc.WriteLine();
-            var x = cc.Prompt("What's your name? ");
-            cc.WriteLine(x);            
-            cc.DrawSeparator(LineStyle.Double, LineStyle.Single);            
-            cc.WriteLine("Performing some task... ");
-            using (var progress = new ProgressBar())
+            // ColoredConsole is IDisposable — using block flushes and closes the log file
+            using (var cc = new ColoredConsole())
             {
-                int min = 0, max = 10;
-                for (int i = min; i < max; i++)
-                {
-                    progress.Report((double)i/max);
-                    Thread.Sleep(500);
-                    // a = 1;
-                }
-            }
-            
-            cc.DrawSeparator(LineStyle.Double, LineStyle.Double);
-            var y = cc.Prompt("Testing prompt to it's max. capability by asking log question. Did you get this message prompt properly? ");
-            cc.WriteLine(y);
-            cc.DrawSeparator(LineStyle.Double, LineStyle.Dotted);
-            cc.WriteLine("This is footer text");
-            cc.DrawSeparator(LineStyle.Double, LineStyle.Dashed);
-            cc.WriteLine("This is sub footer text");
-            cc.DrawBottomLine();
+                cc.EnableLogging("Log");
 
+                // ── Title box ─────────────────────────────────────────────────
+                cc.DrawBox("ColoredConsole.NET — Demo v2.0");
+
+                // ── Basic box structure ────────────────────────────────────────
+                cc.DrawTopLine();
+                cc.WriteLine("Header");
+                cc.DrawSeparator();
+                cc.WriteLine("This is body text.");
+
+                // ── Section header with auto-numbering ─────────────────────────
+                cc.DrawSectionHeader("Numbered List");
+                cc.WriteLine("First item.", new WriteOptions { AutoNumber = true });
+                cc.WriteLine("Second item is intentionally longer to demonstrate the word-aware text wrapping over multiple lines.", new WriteOptions { AutoNumber = true });
+                cc.WriteLine("Third item.", new WriteOptions { AutoNumber = true });
+
+                // ── Prompt ────────────────────────────────────────────────────
+                cc.DrawSeparator();
+                cc.WriteLine();
+                var name = cc.Prompt("What is your name?");
+                cc.WriteLine($"Hello, {name}!", new WriteOptions { ForeColor = ConsoleColor.Green });
+
+                // ── Progress bar (uses the same cc instance for consistent width/theme) ──
+                cc.DrawSeparator(LineStyle.Double, LineStyle.Single);
+                cc.WriteLine("Running a task...");
+
+                using (var pb = new ProgressBar(cc))
+                {
+                    for (int i = 0; i <= 10; i++)
+                    {
+                        pb.Report((double)i / 10);
+                        Thread.Sleep(400);
+                    }
+                }
+
+                // ── Separator styles ──────────────────────────────────────────
+                cc.DrawSeparator(LineStyle.Double, LineStyle.Double);
+                var answer = cc.Prompt("Did the progress bar display correctly?",
+                    new WriteOptions { ForeColor = ConsoleColor.Cyan });
+                cc.WriteLine(answer);
+
+                // ── Hacker theme demo ─────────────────────────────────────────
+                cc.DrawSeparator(LineStyle.Double, LineStyle.Dotted);
+                cc.DrawSectionHeader("Themed Output", foreColor: ConsoleColor.DarkGreen);
+
+                using (var hacker = new ColoredConsole(Theme.Hacker))
+                {
+                    hacker.DrawTopLine();
+                    hacker.WriteLine("Hacker Theme", new WriteOptions { TextStyle = TextStyle.SpacedCaps, TextPosition = TextPosition.Center });
+                    hacker.DrawSeparator();
+                    hacker.WriteLine("Green text · cyan borders · black background.");
+                    hacker.DrawBottomLine();
+                }
+
+                // ── Footer ────────────────────────────────────────────────────
+                cc.DrawSeparator(LineStyle.Double, LineStyle.Dashed);
+                cc.WriteLine("Footer", new WriteOptions { ForeColor = ConsoleColor.DarkGray });
+                cc.DrawBottomLine();
+            }
         }
     }
 }

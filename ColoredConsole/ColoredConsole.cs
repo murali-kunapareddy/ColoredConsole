@@ -1,636 +1,587 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Security.Cryptography;
 using System.Text;
+using System.Threading;
 
-namespace bcd
+namespace Bcd
 {
-    public class ColoredConsole
+    /// <summary>
+    /// Richly-formatted console output: colored text, bordered boxes, section headers,
+    /// separators, prompts, and optional file logging.
+    /// <para>
+    /// Implements <see cref="IDisposable"/> — wrap in a <c>using</c> block to ensure log
+    /// files are flushed and closed on exit.
+    /// </para>
+    /// </summary>
+    public class ColoredConsole : IDisposable
     {
-        static readonly char DOT_TB = '·';  // 250 - top & bottom interpunct
-        static readonly char DSH_TB = '-';  //     - top & bottom interpunct
-        //
-        static readonly char DBL_TL = '╔';  // double top left
-        static readonly char DBL_TR = '╗';  // double top right
-        static readonly char DBL_LR = '║';  // 186 - double left & right
-        static readonly char DBL_LJ = '╠';  // double left joiner
-        static readonly char DBL_RJ = '╣';  // double right joiner
-        static readonly char DBL_TB = '═';  // double top & bottom
-        static readonly char DBL_TJ = '╦';  // double top joiner
-        static readonly char DBL_BJ = '╩';  // double bottom joiner
-        static readonly char DBL_CJ = '╬';  // double cross joiner
-        static readonly char DBL_BL = '╚';  // double bottom left
-        static readonly char DBL_BR = '╝';  // double bottom right
-        //
-        static readonly char SGL_TL = '┌';  // 218
-        static readonly char SGL_TR = '┐';
-        static readonly char SGL_LR = '│';
-        static readonly char SGL_LJ = '├';
-        static readonly char SGL_RJ = '┤';
-        static readonly char SGL_TB = '─';   //196
-        static readonly char SGL_TJ = '┬';
-        static readonly char SGL_BJ = '┴';
-        static readonly char SGL_CJ = '┼';   //197
-        static readonly char SGL_BL = '└';
-        static readonly char SGL_BR = '┘';   //217
-        //
-        static readonly char MIX_DTSJ = '╤'; //209  double top single joiner
-        static readonly char MIX_DBSJ = '╧'; //207  double bottom single joiner
-        static readonly char MIX_DLSJ = '╟'; //199  double left single joiner
-        static readonly char MIX_DRSJ = '╢'; //182  double right single joiner
-        static readonly char MIX_STDJ = '╥'; //210  single top double joiner
-        static readonly char MIX_SBDJ = '╨'; //208  single bottom double joiner
-        static readonly char MIX_SLDJ = '╞'; //198  single left double joiner
-        static readonly char MIX_SRDJ = '╡'; //181  single right double joiner
+        #region ──── BOX-DRAWING CHARACTER SET ────
 
-        public int DefaultWidth { get; set; }
-        public LineStyle DefaultLineStyle { get; set; }
-        public LineStyle DefaultVerticalLineStyle { get; set; }
-        public LineStyle DefaultHorizontalLineStyle { get; set; }
-        public TextPosition DefaultTextPosition { get; set; }
-        public TextStyle DefaultTextStyle { get; set; }
-        public ConsoleColor DefaultBackColor { get; set; }
-        public ConsoleColor DefaultForeColor { get; set; }
-        public ConsoleColor DefaultLineColor { get; set; }
-        public int AutoNumberCounter { get; set; } = 0;
-        public bool LogEnable { get; set; }
-        public string LogFolder { get; set; } = "Log";
-        public bool LogEmail { get; set; }
-        private int AvailableWidth { get; set; }
-        private StringBuilder sbMailBody = new StringBuilder();
+        // Interpunct / dash fill characters
+        private const char DOT_TB   = '·';
+        private const char DSH_TB   = '-';
 
-        #region ***** CONSTRUCTORS *****
+        // Double-line box characters
+        private const char DBL_TL   = '╔';
+        private const char DBL_TR   = '╗';
+        private const char DBL_LR   = '║';
+        private const char DBL_LJ   = '╠';
+        private const char DBL_RJ   = '╣';
+        private const char DBL_TB   = '═';
+        private const char DBL_BL   = '╚';
+        private const char DBL_BR   = '╝';
 
-        public ColoredConsole(int consoleWidth = 79,
-            LineStyle lineStyle = LineStyle.Double,
-            LineStyle verticalLineStyle = LineStyle.Double,
-            LineStyle horizontalLineStyle = LineStyle.Single,
-            TextPosition textPosition = TextPosition.Left,
-            TextStyle textStyle = TextStyle.None,
-            ConsoleColor backColor = ConsoleColor.Black,
-            ConsoleColor foreColor = ConsoleColor.White,
-            ConsoleColor lineColor = ConsoleColor.Yellow)
+        // Single-line box characters
+        private const char SGL_TL   = '┌';
+        private const char SGL_TR   = '┐';
+        private const char SGL_LR   = '│';
+        private const char SGL_LJ   = '├';
+        private const char SGL_RJ   = '┤';   // BUG FIX: original code used SGL_LJ here too
+        private const char SGL_TB   = '─';
+        private const char SGL_BL   = '└';
+        private const char SGL_BR   = '┘';
+
+        // Mixed-style joiners (double vertical + single horizontal, and vice-versa)
+        private const char MIX_DLSJ = '╟';
+        private const char MIX_DRSJ = '╢';
+        private const char MIX_SLDJ = '╞';
+        private const char MIX_SRDJ = '╡';
+
+        #endregion
+
+        #region ──── FIELDS ────
+
+        private readonly Theme       _theme;
+        private readonly int         _width;
+        private readonly int         _availableWidth;  // _width - 4 (2 border chars + 2 padding spaces)
+        private          int         _autoNumber;
+        private          StreamWriter _logWriter;
+        private readonly object      _logLock = new object();
+        private          bool        _disposed;
+
+        #endregion
+
+        #region ──── PROPERTIES ────
+
+        /// <summary>The active theme supplying default colors and line styles.</summary>
+        public Theme Theme => _theme;
+
+        /// <summary>Resolved render width in characters.</summary>
+        public int Width => _width;
+
+        /// <summary>Current auto-number counter value (thread-safe read).</summary>
+        public int AutoNumberCounter => Volatile.Read(ref _autoNumber);
+
+        /// <summary>Whether file logging is currently active.</summary>
+        public bool LogEnabled => _logWriter != null;
+
+        #endregion
+
+        #region ──── CONSTRUCTORS ────
+
+        /// <summary>
+        /// Creates a new <see cref="ColoredConsole"/> with an optional theme and width.
+        /// </summary>
+        /// <param name="theme">
+        /// Visual theme. Defaults to <see cref="Theme.Default"/> (dark background, yellow borders).
+        /// </param>
+        /// <param name="width">
+        /// Render width in characters. Pass <c>0</c> (default) to auto-detect from the current
+        /// console window width (clamped 40–120), or supply a fixed value for redirected output.
+        /// </param>
+        public ColoredConsole(Theme theme = null, int width = 0)
         {
-            this.DefaultWidth = consoleWidth;
-            this.DefaultLineStyle = lineStyle;
-            this.DefaultVerticalLineStyle = verticalLineStyle;
-            this.DefaultHorizontalLineStyle = horizontalLineStyle;
-            this.DefaultTextPosition = textPosition;
-            this.DefaultTextStyle = textStyle;
-            this.DefaultBackColor = backColor;
-            this.DefaultForeColor = foreColor;
-            this.DefaultLineColor = lineColor;
-            //
-            this.AvailableWidth = this.DefaultWidth - 4;
-            //
-            /*
-            if (ConfigurationManager.AppSettings["LogEnabled"] == "YES")
+            _theme          = theme ?? Theme.Default;
+            _width          = ResolveWidth(width);
+            _availableWidth = _width - 4;
+        }
+
+        #endregion
+
+        #region ──── LOGGING ────
+
+        /// <summary>
+        /// Enables daily file logging. Each session appends to
+        /// <c>&lt;appDir&gt;/&lt;folder&gt;/yy-MM-dd.log</c>.
+        /// The log folder is created automatically if it does not exist.
+        /// </summary>
+        /// <param name="folder">Subfolder name relative to the application base directory. Default: <c>"Log"</c>.</param>
+        public void EnableLogging(string folder = "Log")
+        {
+            lock (_logLock)
             {
-                string folder = ConfigurationManager.AppSettings["LogFileFolder"];
-                folder = AppDomain.CurrentDomain.BaseDirectory + folder;
-                if (Directory.Exists(folder))
-                {
-                    var logFile = $"{DateTime.Now.ToString("yyMMdd")}.log";
-                    logFile = Path.Combine(folder, logFile);
-                    if (File.Exists(logFile))
-                    {
-                        this.LogFile = logFile;
-                    }
-                    else
-                    {
-                        //File.Create(logFile);
-                        // Create a file to write to.
-                        using (StreamWriter sw = File.CreateText(logFile))
-                        {
-                            sw.WriteLine("========== LOG FILE STARTED ==========");
-                        }
-                        this.LogFile = logFile;
-                    }
-                }
-                else
-                {
-                    Directory.CreateDirectory(folder);
-                    var logFile = $"{DateTime.Now.ToString("yyMMdd")}.log";
-                    logFile = Path.Combine(folder, logFile);
-                    File.Create(logFile);
-                    this.LogFile = LogFile;
-                }
-            }
-            */
-        }
+                _logWriter?.Dispose();
 
-        #endregion
-
-        #region ***** PUBLIC METHODS *****
-
-        #region ***** TOP LINE ******
-        public void DrawTopLine()
-        {
-            drawTopLine(DefaultLineStyle, DefaultBackColor, DefaultLineColor);
-        }
-
-        public void DrawTopLine(LineStyle lineStyle)
-        {
-            drawTopLine(lineStyle, DefaultBackColor, DefaultLineColor);
-        }
-
-        public void DrawTopLine(LineStyle lineStyle, ConsoleColor backColor, ConsoleColor lineColor)
-        {
-            drawTopLine(lineStyle, backColor, lineColor);
-        }
-
-        #endregion
-
-        #region ***** BOTTOM LINE ******
-
-        public void DrawBottomLine()
-        {
-            drawBottomLine(DefaultLineStyle, DefaultBackColor, DefaultLineColor);
-        }
-
-        public void DrawBottomLine(LineStyle lineStyle)
-        {
-            drawBottomLine(lineStyle, DefaultBackColor, DefaultLineColor);
-        }
-
-        public void DrawBottomLine(LineStyle lineStyle, ConsoleColor backColor, ConsoleColor lineColor)
-        {
-            drawBottomLine(lineStyle, backColor, lineColor);
-        }
-
-        #endregion
-
-        #region ***** SEPARATOR ******
-        public void DrawSeparator() => DrawSeparator(DefaultVerticalLineStyle, DefaultHorizontalLineStyle);
-
-        public void DrawSeparator(LineStyle verticalLineStyle, LineStyle horizongalLineStyle)
-        {
-            if (verticalLineStyle == LineStyle.Single && horizongalLineStyle == LineStyle.Dotted)
-                draw_V_SGL_H_DOT_Line();
-            else if (verticalLineStyle == LineStyle.Single && horizongalLineStyle == LineStyle.Dashed)
-                draw_V_SGL_H_DSH_Line();
-            else if (verticalLineStyle == LineStyle.Single && horizongalLineStyle == LineStyle.Single)
-                draw_V_SGL_H_SGL_Line();
-            else if (verticalLineStyle == LineStyle.Single && horizongalLineStyle == LineStyle.Double)
-                draw_V_SGL_H_DBL_Line();
-            else if (verticalLineStyle == LineStyle.Double && horizongalLineStyle == LineStyle.Dotted)
-                draw_V_DBL_H_DOT_Line();
-            else if (verticalLineStyle == LineStyle.Double && horizongalLineStyle == LineStyle.Dashed)
-                draw_V_DBL_H_DSH_Line();
-            else if (verticalLineStyle == LineStyle.Double && horizongalLineStyle == LineStyle.Single)
-                draw_V_DBL_H_SGL_Line();
-            else if (verticalLineStyle == LineStyle.Double && horizongalLineStyle == LineStyle.Double)
-                draw_V_DBL_H_DBL_Line();
-        }
-
-        #endregion
-
-        #region ***** SECTION HEAD *****
-        public void DrawSeparator(string message,
-            LineStyle sectionLineStyle = LineStyle.Single,
-            TextPosition textPosition = TextPosition.Left,
-            int tabStop = 1,
-            bool autoNumber = false,
-            TextStyle textStyle = TextStyle.Caps,
-            ConsoleColor backColor = ConsoleColor.Black,
-            ConsoleColor foreColor = ConsoleColor.DarkRed,
-            ConsoleColor lineColor = ConsoleColor.Yellow)
-        {
-            switch (sectionLineStyle)
-            {
-                case LineStyle.Single:
-                    message = $"{new string(SGL_TB, tabStop * 4)} {message} {new string(SGL_TB, AvailableWidth - (message.Length + tabStop * 4) - 2)}";
-                    break;
-                case LineStyle.Double:
-                    message = message.PadLeft(tabStop * 4, DBL_TB);
-                    message = message.PadRight(AvailableWidth - message.Length, DBL_TB);
-                    break;
-                case LineStyle.Dotted:
-                    message = message.PadLeft(tabStop * 4, DOT_TB);
-                    message = message.PadRight(AvailableWidth - message.Length, DOT_TB);
-                    break;
-                case LineStyle.Dashed:
-                    message = message.PadLeft(tabStop * 4, DSH_TB);
-                    message = message.PadRight(AvailableWidth - message.Length, DSH_TB);
-                    break;
-                default: break;
-            }
-            WriteLine();
-            WriteLine(message, DefaultLineStyle, textPosition, 0, autoNumber, textStyle, backColor, foreColor, lineColor);
-            WriteLine();
-        }
-
-        #endregion
-
-        #region ***** BOX ******
-        public void DrawBox(string message,
-            LineStyle lineStyle = LineStyle.Double,
-            TextPosition textPosition = TextPosition.Center,
-            int tabStop = 0,
-            bool autoNumber = false,
-            TextStyle textStyle = TextStyle.SpacedCaps,
-            ConsoleColor backColor = ConsoleColor.Black,
-            ConsoleColor foreColor = ConsoleColor.DarkRed,
-            ConsoleColor lineColor = ConsoleColor.Yellow)
-        {
-            DrawTopLine(lineStyle, backColor, lineColor);
-            WriteLine(message, lineStyle, textPosition, tabStop, autoNumber, textStyle, backColor, foreColor, lineColor);
-            DrawBottomLine(lineStyle, backColor, lineColor);
-        }
-
-        #endregion
-
-        #region ***** PROMPT ******
-        public string Prompt(string message,
-            LineStyle lineStyle = LineStyle.Double,
-            TextPosition textPosition = TextPosition.Left,
-            int tabStop = 0,
-            bool autoNumber = false,
-            TextStyle textStyle = TextStyle.None,
-            ConsoleColor backColor = ConsoleColor.Black,
-            ConsoleColor foreColor = ConsoleColor.White,
-            ConsoleColor lineColor = ConsoleColor.Yellow)
-        {
-            writeLine(message, lineStyle, textPosition, tabStop, autoNumber, textStyle, backColor, foreColor, lineColor);
-            string retval = ReadLine();
-            WriteLogMessage(message, tabStop);
-            return retval;
-        }
-        #endregion
-
-        #region ***** WRITE MESSAGE + LOG ******
-        public void Write(string message,
-            LineStyle lineStyle = LineStyle.Double,
-            TextPosition textPosition = TextPosition.Left,
-            int tabStop = 0,
-            bool autoNumber = false,
-            TextStyle textStyle = TextStyle.None,
-            ConsoleColor backColor = ConsoleColor.Black,
-            ConsoleColor foreColor = ConsoleColor.White,
-            ConsoleColor lineColor = ConsoleColor.Yellow)
-        {
-            write(message, lineStyle, textPosition, tabStop, autoNumber, textStyle, backColor, foreColor, lineColor);
-            WriteLogMessage(message, tabStop);
-        }
-
-        public void WriteLine(string message = "",
-            LineStyle lineStyle = LineStyle.Double,
-            TextPosition textPosition = TextPosition.Left,
-            int tabStop = 0,
-            bool autoNumber = false,
-            TextStyle textStyle = TextStyle.None,
-            ConsoleColor backColor = ConsoleColor.Black,
-            ConsoleColor foreColor = ConsoleColor.White,
-            ConsoleColor lineColor = ConsoleColor.Yellow)
-        {
-            writeLine(message, lineStyle, textPosition, tabStop, autoNumber, textStyle, backColor, foreColor, lineColor);
-            WriteLogMessage(message, tabStop);
-        }
-
-        public void WriteLogMessage(string msg, int tab = 0)
-        {
-            if (LogEnable)
-            {
-                // generate file name
-                string logFile = $"{DateTime.Now.ToString("yy-MM-dd")}.log";
-                string logFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, LogFolder);
-                string logPath = string.Empty;
-                // create log folder
+                var logFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, folder);
                 Directory.CreateDirectory(logFolder);
-                // generate log path
-                logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, LogFolder, logFile);
-                //
-                FileInfo fi = new FileInfo(logPath);
-                // This text is always added, making the file longer over time
-                // if it is not deleted.
-                using (FileStream fs = File.Open(logPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite))
+
+                var logPath = Path.Combine(logFolder, $"{DateTime.Now:yy-MM-dd}.log");
+
+                _logWriter = new StreamWriter(logPath, append: true, encoding: Encoding.UTF8)
                 {
-                    if (msg == "=")
-                    {
-                        msg = $"========== {DateTime.Now.ToString("dd MMMM yyyy HH:mm")} =========={Environment.NewLine}";
-                    }
-                    else
-                    {
-                        msg = $"[{DateTime.Now.ToString("HH:mm:ss.fff")}] - {msg}{Environment.NewLine}";
-                    }
-                    //sw.WriteLine(msg.PadLeft(tab * 4));
-                    byte[] info = new UTF8Encoding(true).GetBytes(msg);
-                    fs.Write(info, 0, info.Length);
-                }
+                    AutoFlush = true
+                };
+                _logWriter.WriteLine($"===== SESSION {DateTime.Now:dd MMM yyyy HH:mm:ss} =====");
             }
         }
+
+        /// <summary>
+        /// Writes a timestamped message directly to the log file. No-op if logging is not enabled.
+        /// </summary>
+        public void WriteLog(string message)
+        {
+            if (_logWriter == null) return;
+            lock (_logLock)
+            {
+                _logWriter?.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] {message}");
+            }
+        }
+
         #endregion
 
+        #region ──── DRAW: TOP / BOTTOM ────
+
+        /// <summary>Draws the top border of a box.</summary>
+        public void DrawTopLine(
+            LineStyle?    lineStyle = null,
+            ConsoleColor? backColor = null,
+            ConsoleColor? lineColor = null)
+        {
+            var ls = lineStyle ?? _theme.LineStyle;
+            var bc = backColor ?? _theme.BackColor;
+            var lc = lineColor ?? _theme.LineColor;
+            ApplyColors(bc, lc);
+            Console.WriteLine(ls == LineStyle.Single
+                ? $"{SGL_TL}{new string(SGL_TB, _width - 2)}{SGL_TR}"
+                : $"{DBL_TL}{new string(DBL_TB, _width - 2)}{DBL_TR}");
+            Console.ResetColor();
+        }
+
+        /// <summary>Draws the bottom border of a box.</summary>
+        public void DrawBottomLine(
+            LineStyle?    lineStyle = null,
+            ConsoleColor? backColor = null,
+            ConsoleColor? lineColor = null)
+        {
+            var ls = lineStyle ?? _theme.LineStyle;
+            var bc = backColor ?? _theme.BackColor;
+            var lc = lineColor ?? _theme.LineColor;
+            ApplyColors(bc, lc);
+            Console.WriteLine(ls == LineStyle.Single
+                ? $"{SGL_BL}{new string(SGL_TB, _width - 2)}{SGL_BR}"
+                : $"{DBL_BL}{new string(DBL_TB, _width - 2)}{DBL_BR}");
+            Console.ResetColor();
+        }
+
         #endregion
 
-        #region ***** PRIVATE METHODS *****
+        #region ──── DRAW: SEPARATOR ────
 
-        private void drawTopLine(LineStyle ls, ConsoleColor backColor, ConsoleColor lineColor)
+        /// <summary>Draws a horizontal separator using the theme's default styles.</summary>
+        public void DrawSeparator() => DrawSeparator(null, null);
+
+        /// <summary>Draws a horizontal separator with the specified vertical and horizontal styles.</summary>
+        public void DrawSeparator(
+            LineStyle?    verticalLineStyle   = null,
+            LineStyle?    horizontalLineStyle = null,
+            ConsoleColor? backColor           = null,
+            ConsoleColor? lineColor           = null)
         {
-            Console.BackgroundColor = backColor;
-            Console.ForegroundColor = lineColor;
-            switch (ls)
+            var vls = verticalLineStyle   ?? _theme.VerticalLineStyle;
+            var hls = horizontalLineStyle ?? _theme.HorizontalLineStyle;
+            var bc  = backColor ?? _theme.BackColor;
+            var lc  = lineColor ?? _theme.LineColor;
+            ApplyColors(bc, lc);
+            Console.WriteLine(BuildSeparatorLine(vls, hls));
+            Console.ResetColor();
+        }
+
+        #endregion
+
+        #region ──── DRAW: SECTION HEADER ────
+
+        /// <summary>
+        /// Draws a padded section-header line with embedded text and surrounding blank lines.
+        /// Use this instead of <see cref="DrawSeparator()"/> when you need a labelled divider.
+        /// </summary>
+        public void DrawSectionHeader(
+            string        message,
+            LineStyle?    lineStyle    = null,
+            TextPosition  textPosition = TextPosition.Left,
+            int           tabStop      = 1,
+            bool          autoNumber   = false,
+            TextStyle     textStyle    = TextStyle.Caps,
+            ConsoleColor? backColor    = null,
+            ConsoleColor? foreColor    = null,
+            ConsoleColor? lineColor    = null)
+        {
+            var ls = lineStyle ?? _theme.HorizontalLineStyle;
+            var bc = backColor ?? _theme.BackColor;
+            var fc = foreColor ?? _theme.AccentColor;
+            var lc = lineColor ?? _theme.LineColor;
+
+            var header = EmbedInLine(message, ls, tabStop);
+            RenderBlankLine(bc, lc);
+            RenderLine(header, _theme.LineStyle, textPosition, 0, autoNumber, textStyle, bc, fc, lc);
+            RenderBlankLine(bc, lc);
+            WriteLog($"[SECTION] {message}");
+        }
+
+        #endregion
+
+        #region ──── DRAW: BOX ────
+
+        /// <summary>Draws a complete box (top border + content + bottom border) around the given message.</summary>
+        public void DrawBox(
+            string        message,
+            LineStyle?    lineStyle    = null,
+            TextPosition  textPosition = TextPosition.Center,
+            int           tabStop      = 0,
+            bool          autoNumber   = false,
+            TextStyle     textStyle    = TextStyle.SpacedCaps,
+            ConsoleColor? backColor    = null,
+            ConsoleColor? foreColor    = null,
+            ConsoleColor? lineColor    = null)
+        {
+            var ls = lineStyle ?? _theme.LineStyle;
+            var bc = backColor ?? _theme.BackColor;
+            var fc = foreColor ?? _theme.AccentColor;
+            var lc = lineColor ?? _theme.LineColor;
+
+            DrawTopLine(ls, bc, lc);
+            RenderLine(message, ls, textPosition, tabStop, autoNumber, textStyle, bc, fc, lc);
+            DrawBottomLine(ls, bc, lc);
+        }
+
+        #endregion
+
+        #region ──── PROMPT ────
+
+        /// <summary>
+        /// Displays a prompt message inside the box border and reads a line of user input.
+        /// Returns the input string (may be null if redirected).
+        /// </summary>
+        public string Prompt(string message, WriteOptions options = null)
+        {
+            var o = Resolve(options);
+            RenderLine(message, o.LineStyle, o.TextPosition, o.TabStop,
+                o.AutoNumber, o.TextStyle, o.BackColor, o.ForeColor, o.LineColor);
+            var input = RenderReadLine(o.LineStyle, o.TabStop, o.BackColor, ConsoleColor.Green, o.LineColor);
+            WriteLog(message);
+            return input;
+        }
+
+        #endregion
+
+        #region ──── WRITE / WRITELINE ────
+
+        /// <summary>
+        /// Writes text inside the box borders and repositions the cursor to the start of that line.
+        /// Designed for in-place animation (e.g. progress bars). For regular output use <see cref="WriteLine"/>.
+        /// </summary>
+        public void Write(string message, WriteOptions options = null)
+        {
+            var o = Resolve(options);
+            RenderWrite(message, o.LineStyle, o.TextPosition, o.TabStop,
+                o.AutoNumber, o.TextStyle, o.BackColor, o.ForeColor, o.LineColor);
+            WriteLog(message);
+        }
+
+        /// <summary>
+        /// Writes text inside the box borders followed by a newline.
+        /// Call with no arguments to output a blank bordered line.
+        /// </summary>
+        public void WriteLine(string message = "", WriteOptions options = null)
+        {
+            var o = Resolve(options);
+            RenderLine(message, o.LineStyle, o.TextPosition, o.TabStop,
+                o.AutoNumber, o.TextStyle, o.BackColor, o.ForeColor, o.LineColor);
+            WriteLog(message);
+        }
+
+        /// <summary>Resets the auto-number counter to zero.</summary>
+        public void ResetAutoNumber() => Interlocked.Exchange(ref _autoNumber, 0);
+
+        #endregion
+
+        #region ──── IDISPOSABLE ────
+
+        /// <inheritdoc/>
+        public void Dispose()
+        {
+            if (_disposed) return;
+            _disposed = true;
+            lock (_logLock)
             {
-                case LineStyle.Single:
-                    Console.WriteLine($"{SGL_TL}{new string(SGL_TB, DefaultWidth - 2)}{SGL_TR}");
-                    break;
-                case LineStyle.Double:
-                default:
-                    Console.WriteLine($"{DBL_TL}{new string(DBL_TB, DefaultWidth - 2)}{DBL_TR}");
-                    break;
+                _logWriter?.Dispose();
+                _logWriter = null;
             }
-            Console.ResetColor();
         }
 
-        private void drawBottomLine(LineStyle ls, ConsoleColor backColor, ConsoleColor lineColor)
+        #endregion
+
+        #region ──── PRIVATE: RENDERING ────
+
+        /// <summary>
+        /// Renders a bordered line and repositions the cursor to the start of that line
+        /// so the next call overwrites it in place (animation-safe).
+        /// </summary>
+        private void RenderWrite(string msg, LineStyle ls, TextPosition tp, int tab, bool an,
+            TextStyle ts, ConsoleColor bc, ConsoleColor fc, ConsoleColor lc)
         {
-            Console.BackgroundColor = backColor;
-            Console.ForegroundColor = lineColor;
-            switch (ls)
+            msg = msg?.Trim() ?? string.Empty;
+
+            if (msg.Length <= _availableWidth)
             {
-                case LineStyle.Single:
-                    Console.WriteLine($"{SGL_BL}{new string(SGL_TB, DefaultWidth - 2)}{SGL_BR}");
-                    break;
-                case LineStyle.Double:
-                default:
-                    Console.WriteLine($"{DBL_BL}{new string(DBL_TB, DefaultWidth - 2)}{DBL_BR}");
-                    break;
-            }
-            Console.ResetColor();
-        }
-
-        private void draw_V_SGL_H_DOT_Line()
-        {
-            Console.BackgroundColor = DefaultBackColor;
-            Console.ForegroundColor = DefaultLineColor;
-            Console.WriteLine($"{SGL_LR}{new string(DOT_TB, DefaultWidth - 2)}{SGL_LR}");
-            Console.ResetColor();
-        }
-        private void draw_V_SGL_H_DSH_Line()
-        {
-            Console.BackgroundColor = DefaultBackColor;
-            Console.ForegroundColor = DefaultLineColor;
-            Console.WriteLine($"{SGL_LR}{new string(DSH_TB, DefaultWidth - 2)}{SGL_LR}");
-            Console.ResetColor();
-        }
-        private void draw_V_SGL_H_SGL_Line()
-        {
-            Console.BackgroundColor = DefaultBackColor;
-            Console.ForegroundColor = DefaultLineColor;
-            Console.WriteLine($"{SGL_LJ}{new string(SGL_TB, DefaultWidth - 2)}{SGL_LJ}");
-            Console.ResetColor();
-        }
-        private void draw_V_SGL_H_DBL_Line()
-        {
-            Console.BackgroundColor = DefaultBackColor;
-            Console.ForegroundColor = DefaultLineColor;
-            Console.WriteLine($"{MIX_SLDJ}{new string(DBL_TB, DefaultWidth - 2)}{MIX_SRDJ}");
-            Console.ResetColor();
-        }
-        private void draw_V_DBL_H_DOT_Line()
-        {
-            Console.BackgroundColor = DefaultBackColor;
-            Console.ForegroundColor = DefaultLineColor;
-            Console.WriteLine($"{DBL_LR}{new string(DOT_TB, DefaultWidth - 2)}{DBL_LR}");
-            Console.ResetColor();
-        }
-        private void draw_V_DBL_H_DSH_Line()
-        {
-            Console.BackgroundColor = DefaultBackColor;
-            Console.ForegroundColor = DefaultLineColor;
-            Console.WriteLine($"{DBL_LR}{new string(DSH_TB, DefaultWidth - 2)}{DBL_LR}");
-            Console.ResetColor();
-        }
-        private void draw_V_DBL_H_SGL_Line()
-        {
-            Console.BackgroundColor = DefaultBackColor;
-            Console.ForegroundColor = DefaultLineColor;
-            Console.WriteLine($"{MIX_DLSJ}{new string(SGL_TB, DefaultWidth - 2)}{MIX_DRSJ}");
-            Console.ResetColor();
-        }
-        private void draw_V_DBL_H_DBL_Line()
-        {
-            Console.BackgroundColor = DefaultBackColor;
-            Console.ForegroundColor = DefaultLineColor;
-            Console.WriteLine($"{DBL_LJ}{new string(DBL_TB, DefaultWidth - 2)}{DBL_RJ}");
-            Console.ResetColor();
-        }
-
-        private void write(string msg,
-            LineStyle ls = LineStyle.Double,
-            TextPosition tp = TextPosition.Left,
-            int tab = 0,
-            bool an = false,
-            TextStyle ts = TextStyle.None,
-            ConsoleColor bc = ConsoleColor.Black,
-            ConsoleColor fc = ConsoleColor.White,
-            ConsoleColor lc = ConsoleColor.Yellow)
-        {
-            msg = msg.Trim();
-            char lr;
-            if (msg.Length <= AvailableWidth)
-            {
-                Console.BackgroundColor = bc;
-                Console.ForegroundColor = lc;
-                if (ls == LineStyle.Double) lr = DBL_LR; else lr = SGL_LR;
+                int row = Console.IsOutputRedirected ? 0 : Console.CursorTop;
+                var lr  = BorderChar(ls);
+                ApplyColors(bc, lc);
                 Console.Write($"{lr} ");
                 Console.ForegroundColor = fc;
-                Console.Write(formatMessage(msg, tp, tab, ts));
+                Console.Write(FormatMessage(msg, tp, tab, ts));
                 Console.ForegroundColor = lc;
                 Console.WriteLine($" {lr}");
-                // below two lines added 
-                var top = Console.CursorTop;
-                Console.SetCursorPosition(0, top - 1);
-                //
                 Console.ResetColor();
+                // Reposition to start of the written line for in-place overwrite
+                if (!Console.IsOutputRedirected)
+                    Console.SetCursorPosition(0, row);
             }
             else
             {
-                // split the big message into small messages that fit inside the console width
-                var splitMsg = SplitByLength(msg, AvailableWidth);
-                foreach (string bitMsg in splitMsg)
-                {
-                    writeLine(bitMsg, ls, tp, tab, an, ts, bc, fc, lc);
-                }
+                foreach (var chunk in WordWrap(msg, _availableWidth))
+                    RenderLine(chunk, ls, tp, tab, false, ts, bc, fc, lc);
             }
-            //
         }
-        private void writeLine(string msg,
-            LineStyle ls = LineStyle.Double,
-            TextPosition tp = TextPosition.Left,
-            int tab = 0,
-            bool an = false,
-            TextStyle ts = TextStyle.None,
-            ConsoleColor bc = ConsoleColor.Black,
-            ConsoleColor fc = ConsoleColor.White,
-            ConsoleColor lc = ConsoleColor.Yellow)
+
+        /// <summary>Renders a bordered line followed by a newline.</summary>
+        private void RenderLine(string msg, LineStyle ls, TextPosition tp, int tab, bool an,
+            TextStyle ts, ConsoleColor bc, ConsoleColor fc, ConsoleColor lc)
         {
-            msg = msg.Trim();
-            // update string with auto number if tp = left
+            msg = msg?.Trim() ?? string.Empty;
+
             if (an && tp == TextPosition.Left)
             {
-                AutoNumberCounter++;
-                var anText = $"{AutoNumberCounter}.";
-                anText = anText.PadRight(4);
-                msg = $"{anText}{msg}";
+                var n = Interlocked.Increment(ref _autoNumber);
+                msg = $"{n}.".PadRight(4) + msg;
             }
-            char lr;
-            if (msg.Length <= AvailableWidth)
+
+            if (msg.Length <= _availableWidth)
             {
-                Console.BackgroundColor = bc;
-                Console.ForegroundColor = lc;
-                if (ls == LineStyle.Double) lr = DBL_LR; else lr = SGL_LR;
+                var lr = BorderChar(ls);
+                ApplyColors(bc, lc);
                 Console.Write($"{lr} ");
                 Console.ForegroundColor = fc;
-                Console.Write(formatMessage(msg, tp, tab, ts));
+                Console.Write(FormatMessage(msg, tp, tab, ts));
                 Console.ForegroundColor = lc;
                 Console.WriteLine($" {lr}");
                 Console.ResetColor();
             }
             else
             {
-                // split the big message into small messages that fit inside the console width
-                var splitMsg = SplitByLength(msg, AvailableWidth);
-                bool isFirst = true;
-                foreach (string bitMsg in splitMsg)
+                // Word-wrap: first chunk stays at caller's tab, subsequent chunks indent one extra level
+                var chunks = WordWrap(msg, _availableWidth - tab * 4);
+                bool first = true;
+                foreach (var chunk in chunks)
                 {
-                    bool anTemp = false;
-                    if (an)
-                    {
-                        if (isFirst)
-                            writeLine(bitMsg, ls, tp, tab, anTemp, ts, bc, fc, lc);
-                        else
-                            writeLine(bitMsg, ls, tp, tab + 1, anTemp, ts, bc, fc, lc);
-                    }
-                    else
-                        writeLine(bitMsg, ls, tp, tab, anTemp, ts, bc, fc, lc);
-                    isFirst = false;
-
+                    RenderLine(chunk, ls, tp, first ? tab : tab + 1, false, ts, bc, fc, lc);
+                    first = false;
                 }
             }
-            //
         }
 
-        private string ReadLine(
-            LineStyle ls = LineStyle.Double,
-            TextPosition tp = TextPosition.Left,
-            int tab = 0,
-            TextStyle ts = TextStyle.None,
-            ConsoleColor bc = ConsoleColor.Black,
-            ConsoleColor fc = ConsoleColor.Green,
-            ConsoleColor lc = ConsoleColor.Yellow)
+        /// <summary>Renders a blank bordered line using background and border colors.</summary>
+        private void RenderBlankLine(ConsoleColor bc, ConsoleColor lc)
+            => RenderLine(string.Empty, _theme.LineStyle, TextPosition.Left, 0, false,
+                TextStyle.None, bc, _theme.ForeColor, lc);
+
+        /// <summary>Renders a bordered "? " prompt line and captures user input inline.</summary>
+        private string RenderReadLine(LineStyle ls, int tab,
+            ConsoleColor bc, ConsoleColor fc, ConsoleColor lc)
         {
-            char lr;
-            //
-            Console.BackgroundColor = bc;
-            Console.ForegroundColor = lc;
-            if (ls == LineStyle.Double) lr = DBL_LR; else lr = SGL_LR;
+            var lr = BorderChar(ls);
+            ApplyColors(bc, lc);
             Console.Write($"{lr} ");
             Console.ForegroundColor = fc;
-            Console.Write(formatMessage("? ", tp, tab + 1, ts));
+            Console.Write(FormatMessage("? ", TextPosition.Left, tab + 1, TextStyle.None));
             Console.ForegroundColor = lc;
             Console.WriteLine($" {lr}");
-            // put the cursor back
-            Console.SetCursorPosition((tab + 1) * 4 + 4, Console.CursorTop - 1);
+
+            // Place cursor at the "?" input position inside the border
+            if (!Console.IsOutputRedirected)
+                Console.SetCursorPosition((tab + 1) * 4 + 4, Console.CursorTop - 1);
+
             Console.ForegroundColor = fc;
-            var retval = Console.ReadLine();
+            var result = Console.ReadLine();
             Console.ResetColor();
-            return retval;
-            //
+            return result;
         }
 
-        private string formatMessage(string msg, TextPosition tp, int tab, TextStyle ts)
+        #endregion
+
+        #region ──── PRIVATE: SEPARATOR CONSTRUCTION ────
+
+        private string BuildSeparatorLine(LineStyle vls, LineStyle hls)
+        {
+            GetSeparatorChars(vls, hls, out char left, out char fill, out char right);
+            return $"{left}{new string(fill, _width - 2)}{right}";
+        }
+
+        private static void GetSeparatorChars(LineStyle vls, LineStyle hls,
+            out char left, out char fill, out char right)
+        {
+            if      (vls == LineStyle.Double && hls == LineStyle.Double) { left = DBL_LJ;   fill = DBL_TB; right = DBL_RJ;   }
+            else if (vls == LineStyle.Double && hls == LineStyle.Single) { left = MIX_DLSJ; fill = SGL_TB; right = MIX_DRSJ; }
+            else if (vls == LineStyle.Double && hls == LineStyle.Dotted) { left = DBL_LR;   fill = DOT_TB; right = DBL_LR;   }
+            else if (vls == LineStyle.Double && hls == LineStyle.Dashed) { left = DBL_LR;   fill = DSH_TB; right = DBL_LR;   }
+            else if (vls == LineStyle.Single && hls == LineStyle.Double) { left = MIX_SLDJ; fill = DBL_TB; right = MIX_SRDJ; }
+            else if (vls == LineStyle.Single && hls == LineStyle.Single) { left = SGL_LJ;   fill = SGL_TB; right = SGL_RJ;   } // BUG FIX: was SGL_LJ on right
+            else if (vls == LineStyle.Single && hls == LineStyle.Dotted) { left = SGL_LR;   fill = DOT_TB; right = SGL_LR;   }
+            else                                                          { left = SGL_LR;   fill = DSH_TB; right = SGL_LR;   } // Single + Dashed
+        }
+
+        #endregion
+
+        #region ──── PRIVATE: TEXT FORMATTING ────
+
+        /// <summary>
+        /// Embeds text into a full-width line filled with the style's fill character.
+        /// Example (Single, tabStop=1): "──── MY HEADER ─────────────────────────────────"
+        /// </summary>
+        private string EmbedInLine(string text, LineStyle ls, int tabStop)
+        {
+            char fill = ls == LineStyle.Double ? DBL_TB
+                      : ls == LineStyle.Dotted ? DOT_TB
+                      : ls == LineStyle.Dashed ? DSH_TB
+                      : SGL_TB;
+
+            var prefix = new string(fill, tabStop * 4);
+            var body   = $"{prefix} {text} ";
+            var padLen = _availableWidth - body.Length;
+
+            // BUG FIX: use padLen as additional chars, guard against negative
+            return padLen > 0
+                ? body + new string(fill, padLen)
+                : body.Substring(0, Math.Min(body.Length, _availableWidth));
+        }
+
+        private string FormatMessage(string msg, TextPosition tp, int tab, TextStyle ts)
         {
             switch (ts)
             {
-                case TextStyle.Spaced:
-                    return padString(msg.Aggregate(string.Empty, (c, i) => c + i + ' '), tp, tab);
-                case TextStyle.Caps:
-                    return padString(msg.ToUpper(), tp, tab);
-                case TextStyle.SpacedCaps:
-                    return padString(msg.Aggregate(string.Empty, (c, i) => c + i + ' ').ToUpper(), tp, tab);
-                case TextStyle.None:
-                default:
-                    return padString(msg, tp, tab);
+                case TextStyle.Spaced:     msg = SpaceOut(msg);                    break;
+                case TextStyle.Caps:       msg = msg.ToUpperInvariant();            break;
+                case TextStyle.SpacedCaps: msg = SpaceOut(msg).ToUpperInvariant(); break;
             }
+            return PadToWidth(msg, tp, tab);
         }
 
-        private string padString(string str, TextPosition tp, int tab)
+        private string PadToWidth(string str, TextPosition tp, int tab)
         {
-            // pad the string 
-            var padding = AvailableWidth - str.Length;
             switch (tp)
             {
                 case TextPosition.Center:
-                    return str.PadLeft((padding) / 2 + str.Length).PadRight(AvailableWidth);
+                    int pad = _availableWidth - str.Length;
+                    return str.PadLeft(str.Length + pad / 2).PadRight(_availableWidth);
                 case TextPosition.Right:
-                    return str.PadLeft(AvailableWidth);
-                case TextPosition.Left:
-                default:
-                    str = str.PadLeft(str.Length + tab * 4);
-                    return str.PadRight(AvailableWidth);
+                    return str.PadLeft(_availableWidth);
+                default: // Left
+                    return str.PadLeft(str.Length + tab * 4).PadRight(_availableWidth);
             }
         }
 
-        private IEnumerable<string> SplitByLength(string str, int maxLength)
+        private static string SpaceOut(string s)
         {
-            for (int index = 0; index < str.Length; index += maxLength)
-            {
-                yield return str.Substring(index, Math.Min(maxLength, str.Length - index));
-            }
+            if (string.IsNullOrEmpty(s)) return s;
+            var sb = new StringBuilder(s.Length * 2);
+            foreach (char c in s) { sb.Append(c); sb.Append(' '); }
+            sb.Length--; // remove trailing space
+            return sb.ToString();
         }
 
-        protected virtual bool IsFileinUse(FileInfo file)
+        /// <summary>
+        /// Word-aware text wrapping. Splits at word boundaries; force-splits only when a
+        /// single word exceeds <paramref name="maxWidth"/>.
+        /// </summary>
+        private static IEnumerable<string> WordWrap(string text, int maxWidth)
         {
-            FileStream stream = null;
+            if (maxWidth <= 0) maxWidth = 1;
 
-            try
+            var line = new StringBuilder();
+
+            foreach (var word in text.Split(' '))
             {
-                stream = file.Open(FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+                if (word.Length == 0) continue;
+
+                // Force-split words that exceed maxWidth on their own
+                if (word.Length > maxWidth)
+                {
+                    if (line.Length > 0) { yield return line.ToString(); line.Clear(); }
+                    for (int i = 0; i < word.Length; i += maxWidth)
+                        yield return word.Substring(i, Math.Min(maxWidth, word.Length - i));
+                    continue;
+                }
+
+                int needed = line.Length == 0 ? word.Length : line.Length + 1 + word.Length;
+                if (needed > maxWidth)
+                {
+                    yield return line.ToString();
+                    line.Clear();
+                }
+                else if (line.Length > 0)
+                {
+                    line.Append(' ');
+                }
+                line.Append(word);
             }
-            catch (IOException)
-            {
-                //the file is unavailable because it is:
-                //still being written to
-                //or being processed by another thread
-                //or does not exist (has already been processed)
-                return true;
-            }
-            finally
-            {
-                if (stream != null)
-                    stream.Close();
-            }
-            return false;
+
+            if (line.Length > 0) yield return line.ToString();
         }
 
         #endregion
 
-        #region ***** PUBLIC ENUMS *****
+        #region ──── PRIVATE: HELPERS ────
 
-        public enum LineStyle
+        private ResolvedOptions Resolve(WriteOptions o) => new ResolvedOptions
         {
-            Dotted = 1, // DOT
-            Dashed = 2, // DSH
-            Single = 3, // SGL
-            Double = 4  // DBL
+            LineStyle    = o?.LineStyle    ?? _theme.LineStyle,
+            TextPosition = o?.TextPosition ?? _theme.TextPosition,
+            TabStop      = o?.TabStop      ?? 0,
+            AutoNumber   = o?.AutoNumber   ?? false,
+            TextStyle    = o?.TextStyle    ?? _theme.TextStyle,
+            BackColor    = o?.BackColor    ?? _theme.BackColor,
+            ForeColor    = o?.ForeColor    ?? _theme.ForeColor,
+            LineColor    = o?.LineColor    ?? _theme.LineColor,
+        };
+
+        private static char BorderChar(LineStyle ls)
+            => ls == LineStyle.Double ? DBL_LR : SGL_LR;
+
+        private static void ApplyColors(ConsoleColor back, ConsoleColor fore)
+        {
+            Console.BackgroundColor = back;
+            Console.ForegroundColor = fore;
         }
 
-        public enum TextPosition
+        private static int ResolveWidth(int requested)
         {
-            Left = 1,
-            Center = 2,
-            Right = 3
+            if (requested > 0) return requested;
+            if (Console.IsOutputRedirected) return 79;
+            try   { return Math.Max(40, Math.Min(Console.WindowWidth - 1, 120)); }
+            catch { return 79; }
         }
 
-        public enum TextStyle
+        // Internal struct avoids repeated heap allocation for resolved options
+        private struct ResolvedOptions
         {
-            Spaced = 1,
-            Caps = 2,
-            SpacedCaps = 3,
-            None = 0
+            public LineStyle    LineStyle;
+            public TextPosition TextPosition;
+            public int          TabStop;
+            public bool         AutoNumber;
+            public TextStyle    TextStyle;
+            public ConsoleColor BackColor;
+            public ConsoleColor ForeColor;
+            public ConsoleColor LineColor;
         }
 
         #endregion
