@@ -1,4 +1,4 @@
-namespace Bcd
+namespace bcd
 {
     /// <summary>Box and separator line drawing style.</summary>
     public enum LineStyle

@@ -1,6 +1,6 @@
 using System;
 
-namespace Bcd
+namespace bcd
 {
     /// <summary>
     /// Defines default visual settings for a <see cref="ColoredConsole"/> instance.
@@ -40,6 +40,20 @@ namespace Bcd
 
         /// <summary>Default text transformation.</summary>
         public TextStyle TextStyle { get; set; } = TextStyle.None;
+
+        // ── Semantic Colors ───────────────────────────────────────────────────
+
+        /// <summary>Color used by <c>WriteSuccess</c>.</summary>
+        public ConsoleColor SuccessColor { get; set; } = ConsoleColor.Green;
+
+        /// <summary>Color used by <c>WriteError</c>.</summary>
+        public ConsoleColor ErrorColor { get; set; } = ConsoleColor.Red;
+
+        /// <summary>Color used by <c>WriteWarning</c>.</summary>
+        public ConsoleColor WarningColor { get; set; } = ConsoleColor.DarkYellow;
+
+        /// <summary>Color used by <c>WriteInfo</c>.</summary>
+        public ConsoleColor InfoColor { get; set; } = ConsoleColor.Cyan;
 
         // ── Preset Themes ─────────────────────────────────────────────────────
 

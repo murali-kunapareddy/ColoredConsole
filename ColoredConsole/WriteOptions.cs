@@ -1,11 +1,14 @@
 using System;
 
-namespace Bcd
+namespace bcd
 {
     /// <summary>
     /// Configures how a single <see cref="ColoredConsole"/> write call is rendered.
     /// Any <c>null</c> value falls back to the instance's active <see cref="Theme"/> setting,
     /// allowing per-call overrides without affecting defaults.
+    /// <para>
+    /// Use object-initializer syntax or the fluent builder methods (e.g. <c>new WriteOptions().Green().Tabbed(1)</c>).
+    /// </para>
     /// </summary>
     public class WriteOptions
     {
@@ -32,5 +35,55 @@ namespace Bcd
 
         /// <summary>Border color. <c>null</c> = theme default.</summary>
         public ConsoleColor? LineColor { get; set; }
+
+        // ── Fluent Builder ────────────────────────────────────────────────────
+
+        /// <summary>Sets the foreground color and returns this instance for chaining.</summary>
+        public WriteOptions WithColor(ConsoleColor color)   { ForeColor = color; return this; }
+
+        /// <summary>Sets the background color and returns this instance for chaining.</summary>
+        public WriteOptions WithBack(ConsoleColor color)    { BackColor = color; return this; }
+
+        /// <summary>Sets the border color and returns this instance for chaining.</summary>
+        public WriteOptions WithBorder(ConsoleColor color)  { LineColor = color; return this; }
+
+        /// <summary>Sets the tab stop and returns this instance for chaining.</summary>
+        public WriteOptions Tabbed(int stops)               { TabStop = stops; return this; }
+
+        /// <summary>Sets text alignment and returns this instance for chaining.</summary>
+        public WriteOptions Aligned(TextPosition pos)       { TextPosition = pos; return this; }
+
+        /// <summary>Sets the text style and returns this instance for chaining.</summary>
+        public WriteOptions Styled(TextStyle style)         { TextStyle = style; return this; }
+
+        /// <summary>Enables auto-numbering and returns this instance for chaining.</summary>
+        public WriteOptions Numbered()                      { AutoNumber = true; return this; }
+
+        // ── Color Shorthand ───────────────────────────────────────────────────
+
+        /// <summary>Green foreground.</summary>
+        public WriteOptions Green()       => WithColor(ConsoleColor.Green);
+
+        /// <summary>Red foreground.</summary>
+        public WriteOptions Red()         => WithColor(ConsoleColor.Red);
+
+        /// <summary>Yellow foreground.</summary>
+        public WriteOptions Yellow()      => WithColor(ConsoleColor.Yellow);
+
+        /// <summary>Cyan foreground.</summary>
+        public WriteOptions Cyan()        => WithColor(ConsoleColor.Cyan);
+
+        /// <summary>White foreground.</summary>
+        public WriteOptions White()       => WithColor(ConsoleColor.White);
+
+        /// <summary>DarkGray foreground.</summary>
+        public WriteOptions Dimmed()      => WithColor(ConsoleColor.DarkGray);
+
+        /// <summary>Centers the text.</summary>
+        public WriteOptions Centered()    => Aligned(bcd.TextPosition.Center);
+
+        /// <summary>Right-aligns the text.</summary>
+        public WriteOptions RightAligned() => Aligned(bcd.TextPosition.Right);
     }
 }
+

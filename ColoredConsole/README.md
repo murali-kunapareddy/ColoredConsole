@@ -10,7 +10,7 @@ _Current Version: 2.0.0_ &nbsp;|&nbsp; &copy; 2024-2026 MIT Licensed.
 ## Getting Started
 
 ```csharp
-using Bcd;
+using bcd;
 
 // ColoredConsole is IDisposable — use a using block to flush logs on exit
 using (var cc = new ColoredConsole())
@@ -136,4 +136,4 @@ using (var cc = new ColoredConsole())
 | 2023-03-15 | 1.0.3 | `ProgressBar` added |
 | 2023-03-26 | 1.0.4 | File logging added |
 | 2024-09-24 | 1.0.5 | `ProgressBar` updated; `AutoNumber` added |
-| 2026-03-09 | **2.0.0** | **Breaking:** namespace renamed `Bcd`; `Theme` and `WriteOptions` types; `DrawSectionHeader` replaces `DrawSeparator(string)`; `IDisposable` logging with `StreamWriter` (no more per-line file open); word-aware text wrapping; auto-detect console width; thread-safe counter; multiple bug fixes |
+| 2026-03-09 | **2.0.0** | **Breaking:** namespace renamed `bcd`; `Theme` and `WriteOptions` types; `DrawSectionHeader` replaces `DrawSeparator(string)`; `IDisposable` logging with `StreamWriter` (no more per-line file open); word-aware text wrapping; auto-detect console width; thread-safe counter; multiple bug fixes |

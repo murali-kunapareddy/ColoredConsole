@@ -3,8 +3,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 
-namespace Bcd
+namespace bcd
 {
     /// <summary>
     /// Richly-formatted console output: colored text, bordered boxes, section headers,
@@ -48,17 +49,30 @@ namespace Bcd
         private const char MIX_SLDJ = '╞';
         private const char MIX_SRDJ = '╡';
 
+        // Table joiners
+        private const char DBL_TJ   = '╦';  // double top joiner        (all-double tables)
+        private const char DBL_BJ   = '╩';  // double bottom joiner
+        private const char DBL_CJ   = '╬';  // double cross joiner
+        private const char SGL_TJ   = '┬';  // single top joiner       (all-single tables)
+        private const char SGL_BJ   = '┴';  // single bottom joiner
+        private const char SGL_CJ   = '┼';  // single cross joiner
+        private const char MIX_DTSC = '╤';  // double-H + single-V top joiner   (mixed tables)
+        private const char MIX_DBSC = '╧';  // double-H + single-V bottom joiner
+        private const char MIX_DHVC = '╪';  // double-H + single-V cross joiner
+
         #endregion
 
         #region ──── FIELDS ────
 
         private readonly Theme       _theme;
-        private readonly int         _width;
-        private readonly int         _availableWidth;  // _width - 4 (2 border chars + 2 padding spaces)
+        private          int         _width;
+        private          int         _availableWidth;  // _width - 4 (2 border chars + 2 padding spaces)
         private          int         _autoNumber;
         private          StreamWriter _logWriter;
         private readonly object      _logLock = new object();
         private          bool        _disposed;
+        private          bool        _asciiMode;
+        private          Func<string, string> _logFormatter;
 
         #endregion
 
@@ -76,6 +90,9 @@ namespace Bcd
         /// <summary>Whether file logging is currently active.</summary>
         public bool LogEnabled => _logWriter != null;
 
+        /// <summary>Whether ASCII fallback mode is active (replaces Unicode box-drawing with +, -, |).</summary>
+        public bool AsciiMode => _asciiMode;
+
         #endregion
 
         #region ──── CONSTRUCTORS ────
@@ -90,9 +107,14 @@ namespace Bcd
         /// Render width in characters. Pass <c>0</c> (default) to auto-detect from the current
         /// console window width (clamped 40–120), or supply a fixed value for redirected output.
         /// </param>
-        public ColoredConsole(Theme theme = null, int width = 0)
+        /// <param name="asciiMode">
+        /// When <c>true</c>, replaces Unicode box-drawing characters with plain ASCII
+        /// (<c>+</c>, <c>-</c>, <c>|</c>). Useful for CI/CD logs, SSH sessions, or legacy terminals.
+        /// </param>
+        public ColoredConsole(Theme theme = null, int width = 0, bool asciiMode = false)
         {
             _theme          = theme ?? Theme.Default;
+            _asciiMode      = asciiMode;
             _width          = ResolveWidth(width);
             _availableWidth = _width - 4;
         }
@@ -107,13 +129,27 @@ namespace Bcd
         /// The log folder is created automatically if it does not exist.
         /// </summary>
         /// <param name="folder">Subfolder name relative to the application base directory. Default: <c>"Log"</c>.</param>
-        public void EnableLogging(string folder = "Log")
+        /// <param name="formatter">
+        /// Optional custom log line formatter. Receives the raw message and returns the string to write.
+        /// Default: <c>[HH:mm:ss.fff] message</c>.
+        /// Example: <c>msg => $"{DateTime.UtcNow:O} | {msg}"</c>
+        /// </param>
+        public void EnableLogging(string folder = "Log", Func<string, string> formatter = null)
+        {
+            _logFormatter = formatter;
+            EnableLoggingCore(folder);
+        }
+
+        private void EnableLoggingCore(string folder)
         {
             lock (_logLock)
             {
                 _logWriter?.Dispose();
 
-                var logFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, folder);
+                // Support both absolute paths (e.g. from tests) and relative subfolder names
+                var logFolder = Path.IsPathRooted(folder)
+                    ? folder
+                    : Path.Combine(AppDomain.CurrentDomain.BaseDirectory, folder);
                 Directory.CreateDirectory(logFolder);
 
                 var logPath = Path.Combine(logFolder, $"{DateTime.Now:yy-MM-dd}.log");
@@ -134,7 +170,10 @@ namespace Bcd
             if (_logWriter == null) return;
             lock (_logLock)
             {
-                _logWriter?.WriteLine($"[{DateTime.Now:HH:mm:ss.fff}] {message}");
+                var line = _logFormatter != null
+                    ? _logFormatter(message)
+                    : $"[{DateTime.Now:HH:mm:ss.fff}] {message}";
+                _logWriter?.WriteLine(line);
             }
         }
 
@@ -152,9 +191,11 @@ namespace Bcd
             var bc = backColor ?? _theme.BackColor;
             var lc = lineColor ?? _theme.LineColor;
             ApplyColors(bc, lc);
-            Console.WriteLine(ls == LineStyle.Single
-                ? $"{SGL_TL}{new string(SGL_TB, _width - 2)}{SGL_TR}"
-                : $"{DBL_TL}{new string(DBL_TB, _width - 2)}{DBL_TR}");
+            Console.WriteLine(_asciiMode
+                ? $"+{new string('-', _width - 2)}+"
+                : ls == LineStyle.Single
+                    ? $"{SGL_TL}{new string(SGL_TB, _width - 2)}{SGL_TR}"
+                    : $"{DBL_TL}{new string(DBL_TB, _width - 2)}{DBL_TR}");
             Console.ResetColor();
         }
 
@@ -168,9 +209,11 @@ namespace Bcd
             var bc = backColor ?? _theme.BackColor;
             var lc = lineColor ?? _theme.LineColor;
             ApplyColors(bc, lc);
-            Console.WriteLine(ls == LineStyle.Single
-                ? $"{SGL_BL}{new string(SGL_TB, _width - 2)}{SGL_BR}"
-                : $"{DBL_BL}{new string(DBL_TB, _width - 2)}{DBL_BR}");
+            Console.WriteLine(_asciiMode
+                ? $"+{new string('-', _width - 2)}+"
+                : ls == LineStyle.Single
+                    ? $"{SGL_BL}{new string(SGL_TB, _width - 2)}{SGL_BR}"
+                    : $"{DBL_BL}{new string(DBL_TB, _width - 2)}{DBL_BR}");
             Console.ResetColor();
         }
 
@@ -305,6 +348,259 @@ namespace Bcd
 
         #endregion
 
+        #region ──── RESIZE / ASCII MODE ────
+
+        /// <summary>
+        /// Re-reads <see cref="Console.WindowWidth"/> and updates the internal render width.
+        /// Call this after the user resizes the terminal window.
+        /// </summary>
+        /// <param name="explicitWidth">Override value. Pass <c>0</c> to auto-detect.</param>
+        public void Resize(int explicitWidth = 0)
+        {
+            _width          = ResolveWidth(explicitWidth);
+            _availableWidth = _width - 4;
+        }
+
+        /// <summary>
+        /// Enables or disables ASCII fallback mode at runtime.
+        /// When enabled, Unicode box-drawing characters are replaced with <c>+</c>, <c>-</c>, <c>|</c>.
+        /// </summary>
+        public void SetAsciiMode(bool enabled) => _asciiMode = enabled;
+
+        #endregion
+
+        #region ──── DRAW: KEY-VALUE / LIST ────
+
+        /// <summary>
+        /// Writes a single key-value pair with the key in accent color and the value in foreground color.
+        /// </summary>
+        public void DrawKeyValue(string key, string value,
+            int tabStop = 0,
+            ConsoleColor? keyColor   = null,
+            ConsoleColor? valueColor = null,
+            WriteOptions  options    = null)
+        {
+            var o  = Resolve(options);
+            var kc = keyColor   ?? _theme.AccentColor;
+            var vc = valueColor ?? _theme.ForeColor;
+            var lr = BorderChar(o.LineStyle);
+
+            ApplyColors(o.BackColor, o.LineColor);
+            Console.Write($"{lr} ");
+            Console.Write(new string(' ', tabStop * 4));
+
+            Console.ForegroundColor = kc;
+            Console.Write(key);
+            Console.ForegroundColor = o.LineColor;
+            Console.Write(": ");
+            Console.ForegroundColor = vc;
+
+            // Fill rest of line
+            var content      = $"{key}: {value}";
+            var padded       = value.PadRight(_availableWidth - tabStop * 4 - content.Length + value.Length);
+            Console.Write(padded);
+
+            Console.ForegroundColor = o.LineColor;
+            Console.WriteLine($" {lr}");
+            Console.ResetColor();
+            WriteLog($"{key}: {value}");
+        }
+
+        /// <summary>
+        /// Writes a labelled bullet list, each item prefixed with a bullet character.
+        /// </summary>
+        /// <param name="header">Optional section header drawn above the list. Pass <c>null</c> to skip.</param>
+        /// <param name="items">List items.</param>
+        /// <param name="bullet">Bullet character. Default: <c>•</c>. Use <c>'-'</c> for ASCII mode.</param>
+        /// <param name="tabStop">Indentation level for list items.</param>
+        public void DrawList(string header, string[] items,
+            char   bullet  = '•',
+            int    tabStop = 1,
+            ConsoleColor? foreColor = null)
+        {
+            if (header != null)
+                DrawSectionHeader(header);
+
+            if (items == null) return;
+
+            var color = foreColor ?? _theme.ForeColor;
+            var effectiveBullet = _asciiMode ? '-' : bullet;
+
+            foreach (var item in items)
+                WriteLine($"{effectiveBullet} {item}", new WriteOptions { ForeColor = color, TabStop = tabStop });
+        }
+
+        #endregion
+
+        #region ──── WRITE: SEMANTIC ────
+
+        /// <summary>Writes a success message prefixed with ✓ in the theme's success color.</summary>
+        public void WriteSuccess(string message, int tabStop = 0)
+            => WriteLine($"✓ {message}", new WriteOptions { ForeColor = _theme.SuccessColor, TabStop = tabStop });
+
+        /// <summary>Writes an error message prefixed with ✗ in the theme's error color.</summary>
+        public void WriteError(string message, int tabStop = 0)
+            => WriteLine($"✗ {message}", new WriteOptions { ForeColor = _theme.ErrorColor, TabStop = tabStop });
+
+        /// <summary>Writes a warning message prefixed with ⚠ in the theme's warning color.</summary>
+        public void WriteWarning(string message, int tabStop = 0)
+            => WriteLine($"⚠ {message}", new WriteOptions { ForeColor = _theme.WarningColor, TabStop = tabStop });
+
+        /// <summary>Writes an informational message prefixed with ℹ in the theme's info color.</summary>
+        public void WriteInfo(string message, int tabStop = 0)
+            => WriteLine($"ℹ {message}", new WriteOptions { ForeColor = _theme.InfoColor, TabStop = tabStop });
+
+        #endregion
+
+        #region ──── WRITE: ASYNC ────
+
+        /// <summary>
+        /// Asynchronously writes text inside the box borders followed by a newline.
+        /// Thread-pool offload — safe to <c>await</c> from async contexts.
+        /// </summary>
+        public Task WriteLineAsync(string message = "", WriteOptions options = null)
+            => Task.Run(() => WriteLine(message, options));
+
+        /// <summary>
+        /// Asynchronously writes text inside the box borders (animation-safe overwrite mode).
+        /// </summary>
+        public Task WriteAsync(string message, WriteOptions options = null)
+            => Task.Run(() => Write(message, options));
+
+        #endregion
+
+        #region ──── DRAW: TABLE ────
+
+        /// <summary>
+        /// Renders a formatted, bordered table with an optional header row.
+        /// Column widths are auto-computed from cell content unless overridden via <see cref="TableOptions.ColumnWidths"/>.
+        /// </summary>
+        /// <param name="headers">Header labels. Pass <c>null</c> or set <see cref="TableOptions.ShowHeader"/> to <c>false</c> to omit.</param>
+        /// <param name="rows">Data rows. Each row is an array of cell strings.</param>
+        /// <param name="options">Table rendering options.</param>
+        public void DrawTable(string[] headers, IEnumerable<string[]> rows, TableOptions options = null)
+        {
+            var opt = options ?? new TableOptions();
+
+            // Materialise rows so we can iterate twice (column width + render)
+            var data = new List<string[]>();
+            if (rows != null)
+                foreach (var r in rows) data.Add(r);
+
+            int colCount = headers != null ? headers.Length
+                         : data.Count > 0  ? data[0].Length
+                         : 0;
+            if (colCount == 0) return;
+
+            var colWidths = ComputeColumnWidths(headers, data, opt, colCount);
+            var chars     = GetTableCharSet(opt.Style);
+
+            var bc  = opt.BackColor       ?? _theme.BackColor;
+            var hfc = opt.HeaderForeColor ?? _theme.AccentColor;
+            var dfc = opt.DataForeColor   ?? _theme.ForeColor;
+            var lc  = opt.LineColor       ?? _theme.LineColor;
+
+            // Top border
+            ApplyColors(bc, lc);
+            Console.WriteLine(BuildTableLine(colWidths, chars.TopLeft, chars.TopFill, chars.TopJoin, chars.TopRight));
+            Console.ResetColor();
+
+            // Header
+            if (opt.ShowHeader && headers != null && headers.Length > 0)
+            {
+                RenderTableRow(headers, colWidths, opt.ColumnAlignments, chars, bc, hfc, lc);
+                ApplyColors(bc, lc);
+                Console.WriteLine(BuildTableLine(colWidths, chars.HdrLeft, chars.HdrFill, chars.HdrJoin, chars.HdrRight));
+                Console.ResetColor();
+            }
+
+            // Data rows
+            for (int r = 0; r < data.Count; r++)
+            {
+                RenderTableRow(data[r], colWidths, opt.ColumnAlignments, chars, bc, dfc, lc);
+
+                if (opt.ShowRowSeparators && r < data.Count - 1)
+                {
+                    ApplyColors(bc, lc);
+                    Console.WriteLine(BuildTableLine(colWidths, chars.RowLeft, chars.RowFill, chars.RowJoin, chars.RowRight));
+                    Console.ResetColor();
+                }
+            }
+
+            // Bottom border
+            ApplyColors(bc, lc);
+            Console.WriteLine(BuildTableLine(colWidths, chars.BotLeft, chars.BotFill, chars.BotJoin, chars.BotRight));
+            Console.ResetColor();
+        }
+
+        #endregion
+
+        #region ──── DRAW: COLUMNS ────
+
+        /// <summary>
+        /// Writes an array of values side-by-side in equal-width columns inside the box border.
+        /// </summary>
+        /// <param name="values">Cell values, one per column.</param>
+        /// <param name="alignments">Per-column alignment. Missing entries default to <see cref="TextPosition.Left"/>.</param>
+        /// <param name="foreColors">Per-column text colors. Missing entries use theme foreground.</param>
+        /// <param name="options">Base write options (line style, back/line color, tab stop).</param>
+        public void WriteColumns(string[] values,
+            TextPosition[] alignments = null,
+            ConsoleColor[] foreColors = null,
+            WriteOptions   options    = null)
+        {
+            if (values == null || values.Length == 0) return;
+
+            var o        = Resolve(options);
+            int colCount = values.Length;
+
+            // Available width per column:
+            // _availableWidth = left_pad(1) + N*colW + (N-1)*sep(3) + right_pad(1)
+            // colW = (_availableWidth - 2 - (N-1)*3) / N
+            int colW = (_availableWidth - 2 - (colCount - 1) * 3) / colCount;
+            if (colW < 1) colW = 1;
+
+            var lr = BorderChar(o.LineStyle);
+            ApplyColors(o.BackColor, o.LineColor);
+            Console.Write($"{lr} ");
+
+            for (int i = 0; i < colCount; i++)
+            {
+                if (i > 0)
+                {
+                    Console.ForegroundColor = o.LineColor;
+                    Console.Write($" {SGL_LR} ");
+                }
+
+                var tp    = alignments != null && i < alignments.Length ? alignments[i] : TextPosition.Left;
+                var color = foreColors != null && i < foreColors.Length  ? foreColors[i]  : o.ForeColor;
+                var text  = values[i] ?? string.Empty;
+                if (text.Length > colW) text = text.Substring(0, colW);
+
+                Console.ForegroundColor = color;
+                Console.Write(PadColumn(text, tp, colW));
+            }
+
+            Console.ForegroundColor = o.LineColor;
+            Console.WriteLine($" {lr}");
+            Console.ResetColor();
+            WriteLog(string.Join(" | ", values));
+        }
+
+        /// <summary>
+        /// Writes label-value pairs as side-by-side columns, each formatted as <c>"Label: Value"</c>.
+        /// </summary>
+        public void WriteColumns(params (string Label, string Value)[] pairs)
+        {
+            if (pairs == null || pairs.Length == 0) return;
+            var values = new string[pairs.Length];
+            for (int i = 0; i < pairs.Length; i++)
+                values[i] = $"{pairs[i].Label}: {pairs[i].Value}";
+            WriteColumns(values);
+        }
+
+        #endregion
+
         #region ──── IDISPOSABLE ────
 
         /// <inheritdoc/>
@@ -334,18 +630,17 @@ namespace Bcd
 
             if (msg.Length <= _availableWidth)
             {
-                int row = Console.IsOutputRedirected ? 0 : Console.CursorTop;
-                var lr  = BorderChar(ls);
+                var lr = BorderChar(ls);
                 ApplyColors(bc, lc);
                 Console.Write($"{lr} ");
                 Console.ForegroundColor = fc;
                 Console.Write(FormatMessage(msg, tp, tab, ts));
                 Console.ForegroundColor = lc;
-                Console.WriteLine($" {lr}");
+                Console.Write($" {lr}");
                 Console.ResetColor();
-                // Reposition to start of the written line for in-place overwrite
+                // '\r' returns to column 0 without advancing the line — universally supported
                 if (!Console.IsOutputRedirected)
-                    Console.SetCursorPosition(0, row);
+                    Console.Write('\r');
             }
             else
             {
@@ -423,6 +718,7 @@ namespace Bcd
 
         private string BuildSeparatorLine(LineStyle vls, LineStyle hls)
         {
+            if (_asciiMode) return $"+{new string('-', _width - 2)}+";
             GetSeparatorChars(vls, hls, out char left, out char fill, out char right);
             return $"{left}{new string(fill, _width - 2)}{right}";
         }
@@ -554,8 +850,11 @@ namespace Bcd
             LineColor    = o?.LineColor    ?? _theme.LineColor,
         };
 
-        private static char BorderChar(LineStyle ls)
-            => ls == LineStyle.Double ? DBL_LR : SGL_LR;
+        private char BorderChar(LineStyle ls)
+        {
+            if (_asciiMode) return '|';
+            return ls == LineStyle.Double ? DBL_LR : SGL_LR;
+        }
 
         private static void ApplyColors(ConsoleColor back, ConsoleColor fore)
         {
@@ -582,6 +881,156 @@ namespace Bcd
             public ConsoleColor BackColor;
             public ConsoleColor ForeColor;
             public ConsoleColor LineColor;
+        }
+
+        #endregion
+
+        #region ──── PRIVATE: TABLE HELPERS ────
+
+        private void RenderTableRow(string[] cells, int[] colWidths, TextPosition[] alignments,
+            TableCharSet chars, ConsoleColor bc, ConsoleColor fc, ConsoleColor lc)
+        {
+            ApplyColors(bc, lc);
+            Console.Write(chars.Side);
+
+            for (int i = 0; i < colWidths.Length; i++)
+            {
+                if (i > 0)
+                {
+                    Console.ForegroundColor = lc;
+                    Console.Write(chars.InnerSide);
+                }
+
+                var text = (cells != null && i < cells.Length ? cells[i] : null) ?? string.Empty;
+                if (text.Length > colWidths[i]) text = text.Substring(0, colWidths[i]);
+
+                var tp = alignments != null && i < alignments.Length ? alignments[i] : TextPosition.Left;
+
+                Console.ForegroundColor = lc;
+                Console.Write(' ');
+                Console.ForegroundColor = fc;
+                Console.Write(PadColumn(text, tp, colWidths[i]));
+                Console.ForegroundColor = lc;
+                Console.Write(' ');
+            }
+
+            Console.ForegroundColor = lc;
+            Console.WriteLine(chars.Side);
+            Console.ResetColor();
+        }
+
+        private static string BuildTableLine(int[] colWidths, char left, char fill, char join, char right)
+        {
+            var sb = new StringBuilder();
+            sb.Append(left);
+            for (int i = 0; i < colWidths.Length; i++)
+            {
+                if (i > 0) sb.Append(join);
+                sb.Append(new string(fill, colWidths[i] + 2)); // +2 for the padding spaces
+            }
+            sb.Append(right);
+            return sb.ToString();
+        }
+
+        private int[] ComputeColumnWidths(string[] headers, List<string[]> data, TableOptions opt, int colCount)
+        {
+            var widths = new int[colCount];
+
+            if (opt.ColumnWidths != null)
+            {
+                for (int i = 0; i < colCount; i++)
+                    widths[i] = i < opt.ColumnWidths.Length ? Math.Max(1, opt.ColumnWidths[i]) : 3;
+            }
+            else
+            {
+                // Auto-compute from content
+                if (headers != null)
+                    for (int i = 0; i < Math.Min(headers.Length, colCount); i++)
+                        widths[i] = Math.Max(widths[i], headers[i]?.Length ?? 0);
+
+                foreach (var row in data)
+                    for (int i = 0; i < Math.Min(row.Length, colCount); i++)
+                        widths[i] = Math.Max(widths[i], row[i]?.Length ?? 0);
+
+                for (int i = 0; i < colCount; i++)
+                    widths[i] = Math.Max(3, widths[i]);
+            }
+
+            // Clamp total to available width.
+            // Line structure: [border] + N * ([sp][col][sp]) + (N-1) * [inner] + [border]
+            // = 2 + N*(w+2) + (N-1)   →  overhead = 3*N + 1
+            int maxData = _width - (3 * colCount + 1);
+            int total   = 0;
+            for (int i = 0; i < colCount; i++) total += widths[i];
+
+            if (total > maxData && maxData > 0)
+            {
+                double scale = (double)maxData / total;
+                for (int i = 0; i < colCount; i++)
+                    widths[i] = Math.Max(1, (int)(widths[i] * scale));
+            }
+
+            return widths;
+        }
+
+        private static string PadColumn(string text, TextPosition tp, int width)
+        {
+            switch (tp)
+            {
+                case TextPosition.Center:
+                    int pad = width - text.Length;
+                    return text.PadLeft(text.Length + pad / 2).PadRight(width);
+                case TextPosition.Right:
+                    return text.PadLeft(width);
+                default:
+                    return text.PadRight(width);
+            }
+        }
+
+        private static TableCharSet GetTableCharSet(TableStyle style)
+        {
+            switch (style)
+            {
+                case TableStyle.AllDouble:
+                    return new TableCharSet
+                    {
+                        Side      = DBL_LR,  InnerSide = DBL_LR,
+                        TopLeft   = DBL_TL,  TopFill   = DBL_TB,  TopJoin   = DBL_TJ,  TopRight  = DBL_TR,
+                        HdrLeft   = DBL_LJ,  HdrFill   = DBL_TB,  HdrJoin   = DBL_CJ,  HdrRight  = DBL_RJ,
+                        RowLeft   = DBL_LJ,  RowFill   = DBL_TB,  RowJoin   = DBL_CJ,  RowRight  = DBL_RJ,
+                        BotLeft   = DBL_BL,  BotFill   = DBL_TB,  BotJoin   = DBL_BJ,  BotRight  = DBL_BR
+                    };
+
+                case TableStyle.AllSingle:
+                    return new TableCharSet
+                    {
+                        Side      = SGL_LR,  InnerSide = SGL_LR,
+                        TopLeft   = SGL_TL,  TopFill   = SGL_TB,  TopJoin   = SGL_TJ,  TopRight  = SGL_TR,
+                        HdrLeft   = SGL_LJ,  HdrFill   = SGL_TB,  HdrJoin   = SGL_CJ,  HdrRight  = SGL_RJ,
+                        RowLeft   = SGL_LJ,  RowFill   = SGL_TB,  RowJoin   = SGL_CJ,  RowRight  = SGL_RJ,
+                        BotLeft   = SGL_BL,  BotFill   = SGL_TB,  BotJoin   = SGL_BJ,  BotRight  = SGL_BR
+                    };
+
+                default: // DoubleBorderSingleInner
+                    return new TableCharSet
+                    {
+                        Side      = DBL_LR,   InnerSide = SGL_LR,
+                        TopLeft   = DBL_TL,   TopFill   = DBL_TB,  TopJoin   = MIX_DTSC, TopRight  = DBL_TR,
+                        HdrLeft   = DBL_LJ,   HdrFill   = DBL_TB,  HdrJoin   = MIX_DHVC, HdrRight  = DBL_RJ,
+                        RowLeft   = MIX_DLSJ, RowFill   = SGL_TB,  RowJoin   = SGL_CJ,   RowRight  = MIX_DRSJ,
+                        BotLeft   = DBL_BL,   BotFill   = DBL_TB,  BotJoin   = MIX_DBSC, BotRight  = DBL_BR
+                    };
+            }
+        }
+
+        // Holds all border/joiner characters for a given table style
+        private struct TableCharSet
+        {
+            public char Side, InnerSide;
+            public char TopLeft, TopFill, TopJoin, TopRight;
+            public char HdrLeft, HdrFill, HdrJoin, HdrRight;
+            public char RowLeft, RowFill, RowJoin, RowRight;
+            public char BotLeft, BotFill, BotJoin, BotRight;
         }
 
         #endregion

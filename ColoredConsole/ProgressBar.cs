@@ -4,7 +4,7 @@ using System.Threading;
 // Adapted from Daniel Wolf's progress bar
 // https://gist.github.com/DanielSWolf/0ab6a96899cc5377bf54
 
-namespace Bcd
+namespace bcd
 {
     /// <summary>
     /// A thread-safe, animated ASCII progress bar that renders inside a
@@ -113,12 +113,9 @@ namespace Bcd
                 string text = $"[{new string('#', filled)}{new string('-', BlockCount - filled)}]"
                             + $" {percent,3}% {Animation[_animIndex++ % Animation.Length]}";
 
-                // Save row, write the line, then return cursor to the same row
-                // so the next tick overwrites it in place
-                int row = Console.CursorTop;
-                _cc.WriteLine(text, _options);
-                if (!Console.IsOutputRedirected)
-                    Console.SetCursorPosition(0, row);
+                // Write() (via RenderWrite) already repositions the cursor to the
+                // start of the line it just wrote — no manual SetCursorPosition needed.
+                _cc.Write(text, _options);
 
                 ResetTimer();
             }

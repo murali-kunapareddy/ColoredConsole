@@ -2,17 +2,21 @@
 
 	<PropertyGroup>
 		<TargetFramework>netstandard2.0</TargetFramework>
-		<RootNamespace>Bcd</RootNamespace>
+		<LangVersion>latest</LangVersion>
+		<RootNamespace>bcd</RootNamespace>
 		<Authors>Murali Krishna KUNAPAREDDY</Authors>
-		<Company>BCD</Company>
+		<Company>bcd</Company>
 		<PackageId>ColoredConsole.NET</PackageId>
-		<Product>aBCDe's ColoredConsole</Product>
+		<Product>abcde's ColoredConsole</Product>
 		<Description>A richly-formatted console library for C# — colored text, bordered boxes, section headers, separators, prompts, progress bars, and file logging.</Description>
 		<Copyright>2024-2026</Copyright>
-		<Version>2.0.0</Version>
+		<Version>2.1.0</Version>
 		<PackageReadmeFile>README.md</PackageReadmeFile>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
-		<PackageReleaseNotes>v2.0.0 — Breaking changes: namespace renamed Bcd; Theme and WriteOptions types added; DrawSectionHeader replaces DrawSeparator(string); IDisposable logging; word-aware wrapping; bug fixes.</PackageReleaseNotes>
+		<PackageReleaseNotes>v2.1.0 — Table rendering; multi-column layout; Spinner; semantic write methods (WriteSuccess/Error/Warning/Info); async writes; fluent WriteOptions builder; configurable log formatter; Resize(); ASCII fallback mode; DrawKeyValue/DrawList; AnsiConsole for 256-color and true-color support; unit tests.</PackageReleaseNotes>
+		<PackageTags>console;cli;colored;terminal;progress-bar;spinner;table;logging;box-drawing;ansi;256-color</PackageTags>
+		<RepositoryUrl>https://github.com/muralibcd/ColoredConsole</RepositoryUrl>
+		<RepositoryType>git</RepositoryType>
 		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
 		<Title>ColoredConsole.NET</Title>
 	</PropertyGroup>
