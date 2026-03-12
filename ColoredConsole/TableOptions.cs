@@ -15,6 +15,22 @@ namespace bcd
         AllSingle = 2
     }
 
+    /// <summary>Horizontal alignment of the table within the console box.</summary>
+    public enum TableAlignment
+    {
+        /// <summary>Table starts 2 spaces from the left border (default).</summary>
+        Left = 0,
+
+        /// <summary>Table is centered horizontally within the box.</summary>
+        Center = 1,
+
+        /// <summary>Table ends 2 spaces from the right border.</summary>
+        Right = 2,
+
+        /// <summary>Table columns expand to fill the full width, leaving a 2-space gap on each side.</summary>
+        Justified = 3
+    }
+
     /// <summary>
     /// Configuration for <see cref="ColoredConsole.DrawTable"/>.
     /// Any <c>null</c> color falls back to the active <see cref="Theme"/>.
@@ -50,5 +66,11 @@ namespace bcd
 
         /// <summary>Border and separator color. <c>null</c> = theme line color.</summary>
         public ConsoleColor? LineColor { get; set; }
+
+        /// <summary>
+        /// Horizontal placement of the table within the box.
+        /// Default: <see cref="TableAlignment.Left"/> (2-space gap from the left border).
+        /// </summary>
+        public TableAlignment Alignment { get; set; } = TableAlignment.Left;
     }
 }

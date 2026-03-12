@@ -492,45 +492,112 @@ namespace bcd
                          : 0;
             if (colCount == 0) return;
 
-            var colWidths = ComputeColumnWidths(headers, data, opt, colCount);
-            var chars     = GetTableCharSet(opt.Style);
+            // innerWidth = space between the outer box's left and right borders
+            const int Gap        = 2;
+            int       innerWidth = _width - 2; // outer ║ on each side
 
-            var bc  = opt.BackColor       ?? _theme.BackColor;
-            var hfc = opt.HeaderForeColor ?? _theme.AccentColor;
-            var dfc = opt.DataForeColor   ?? _theme.ForeColor;
-            var lc  = opt.LineColor       ?? _theme.LineColor;
+            // Maximum table width the alignment permits
+            int maxTableW;
+            switch (opt.Alignment)
+            {
+                case TableAlignment.Justified: maxTableW = innerWidth - Gap * 2; break; // 2-gap each side
+                case TableAlignment.Center:    maxTableW = innerWidth;            break; // centers itself
+                default:                       maxTableW = innerWidth - Gap;      break; // Left/Right: one gap
+            }
+
+            var colWidths = ComputeColumnWidths(headers, data, opt, colCount, maxTableW);
+
+            // Justified: expand columns proportionally to fill the target width
+            if (opt.Alignment == TableAlignment.Justified)
+            {
+                int overhead    = 3 * colCount + 1;
+                int targetCols  = Math.Max(colCount, maxTableW - overhead);
+                int currentCols = 0;
+                for (int i = 0; i < colCount; i++) currentCols += colWidths[i];
+
+                if (targetCols > currentCols)
+                {
+                    int extra = targetCols - currentCols, distributed = 0;
+                    for (int i = 0; i < colCount - 1; i++)
+                    {
+                        int add = extra * colWidths[i] / currentCols;
+                        colWidths[i] += add;
+                        distributed  += add;
+                    }
+                    colWidths[colCount - 1] += extra - distributed;
+                }
+            }
+
+            // Actual table width: border + N*(sp+col+sp) + (N-1)*inner + border  →  3N+1+Σcol
+            int tableWidth = 3 * colCount + 1;
+            for (int i = 0; i < colCount; i++) tableWidth += colWidths[i];
+
+            // Left indent (space between outer ║ and the table's own left border)
+            int indent;
+            switch (opt.Alignment)
+            {
+                case TableAlignment.Right:
+                    indent = Math.Max(0, innerWidth - tableWidth - Gap);
+                    break;
+                case TableAlignment.Center:
+                    indent = Math.Max(0, (innerWidth - tableWidth) / 2);
+                    break;
+                default: // Left and Justified
+                    indent = Gap;
+                    break;
+            }
+            // Space between the table's right border and the outer ║
+            int rightPad = Math.Max(0, innerWidth - indent - tableWidth);
+
+            // Outer border character (the cc box that surrounds the table)
+            char        outerChar = _asciiMode ? '|'
+                                  : _theme.LineStyle == LineStyle.Double ? DBL_LR : SGL_LR;
+            ConsoleColor outerLc  = _theme.LineColor;
+
+            var chars = GetTableCharSet(opt.Style);
+            var bc    = opt.BackColor       ?? _theme.BackColor;
+            var hfc   = opt.HeaderForeColor ?? _theme.AccentColor;
+            var dfc   = opt.DataForeColor   ?? _theme.ForeColor;
+            var lc    = opt.LineColor       ?? _theme.LineColor;
+
+            // Writes a horizontal structural line (border/separator) wrapped in the outer ║ chars
+            void WriteBorderLine(string tableLine)
+            {
+                ApplyColors(bc, outerLc);
+                Console.Write(outerChar);
+                if (indent   > 0) Console.Write(new string(' ', indent));
+                ApplyColors(bc, lc);
+                Console.Write(tableLine);
+                ApplyColors(bc, outerLc);
+                if (rightPad > 0) Console.Write(new string(' ', rightPad));
+                Console.Write(outerChar);
+                Console.ResetColor();
+                Console.WriteLine();
+            }
 
             // Top border
-            ApplyColors(bc, lc);
-            Console.WriteLine(BuildTableLine(colWidths, chars.TopLeft, chars.TopFill, chars.TopJoin, chars.TopRight));
-            Console.ResetColor();
+            WriteBorderLine(BuildTableLine(colWidths, chars.TopLeft, chars.TopFill, chars.TopJoin, chars.TopRight));
 
             // Header
             if (opt.ShowHeader && headers != null && headers.Length > 0)
             {
-                RenderTableRow(headers, colWidths, opt.ColumnAlignments, chars, bc, hfc, lc);
-                ApplyColors(bc, lc);
-                Console.WriteLine(BuildTableLine(colWidths, chars.HdrLeft, chars.HdrFill, chars.HdrJoin, chars.HdrRight));
-                Console.ResetColor();
+                RenderTableRow(headers, colWidths, opt.ColumnAlignments, chars, bc, hfc, lc,
+                    indent, rightPad, outerChar, outerLc);
+                WriteBorderLine(BuildTableLine(colWidths, chars.HdrLeft, chars.HdrFill, chars.HdrJoin, chars.HdrRight));
             }
 
             // Data rows
             for (int r = 0; r < data.Count; r++)
             {
-                RenderTableRow(data[r], colWidths, opt.ColumnAlignments, chars, bc, dfc, lc);
+                RenderTableRow(data[r], colWidths, opt.ColumnAlignments, chars, bc, dfc, lc,
+                    indent, rightPad, outerChar, outerLc);
 
                 if (opt.ShowRowSeparators && r < data.Count - 1)
-                {
-                    ApplyColors(bc, lc);
-                    Console.WriteLine(BuildTableLine(colWidths, chars.RowLeft, chars.RowFill, chars.RowJoin, chars.RowRight));
-                    Console.ResetColor();
-                }
+                    WriteBorderLine(BuildTableLine(colWidths, chars.RowLeft, chars.RowFill, chars.RowJoin, chars.RowRight));
             }
 
             // Bottom border
-            ApplyColors(bc, lc);
-            Console.WriteLine(BuildTableLine(colWidths, chars.BotLeft, chars.BotFill, chars.BotJoin, chars.BotRight));
-            Console.ResetColor();
+            WriteBorderLine(BuildTableLine(colWidths, chars.BotLeft, chars.BotFill, chars.BotJoin, chars.BotRight));
         }
 
         #endregion
@@ -554,11 +621,19 @@ namespace bcd
             var o        = Resolve(options);
             int colCount = values.Length;
 
-            // Available width per column:
-            // _availableWidth = left_pad(1) + N*colW + (N-1)*sep(3) + right_pad(1)
-            // colW = (_availableWidth - 2 - (N-1)*3) / N
-            int colW = (_availableWidth - 2 - (colCount - 1) * 3) / colCount;
-            if (colW < 1) colW = 1;
+            // Line structure: ║ [sp] col0 [sp│sp] col1 … colN-1 [sp] ║
+            // Total = 2(left) + N*colW + (N-1)*3(separators) + 2(right) = _width
+            // → sum of colW = _availableWidth − (N−1)*3
+            // Distribute any integer-division remainder to the last column so the
+            // line is always exactly _width characters wide.
+            int totalData = Math.Max(colCount, _availableWidth - (colCount - 1) * 3);
+            int baseColW  = totalData / colCount;
+            int remainder = totalData - baseColW * colCount;
+
+            // colWidths[i]: last column absorbs the remainder
+            int[] colWidths = new int[colCount];
+            for (int i = 0; i < colCount; i++)
+                colWidths[i] = baseColW + (i == colCount - 1 ? remainder : 0);
 
             var lr = BorderChar(o.LineStyle);
             ApplyColors(o.BackColor, o.LineColor);
@@ -572,6 +647,7 @@ namespace bcd
                     Console.Write($" {SGL_LR} ");
                 }
 
+                int colW  = colWidths[i];
                 var tp    = alignments != null && i < alignments.Length ? alignments[i] : TextPosition.Left;
                 var color = foreColors != null && i < foreColors.Length  ? foreColors[i]  : o.ForeColor;
                 var text  = values[i] ?? string.Empty;
@@ -888,8 +964,17 @@ namespace bcd
         #region ──── PRIVATE: TABLE HELPERS ────
 
         private void RenderTableRow(string[] cells, int[] colWidths, TextPosition[] alignments,
-            TableCharSet chars, ConsoleColor bc, ConsoleColor fc, ConsoleColor lc)
+            TableCharSet chars, ConsoleColor bc, ConsoleColor fc, ConsoleColor lc,
+            int indent, int rightPad, char outerChar, ConsoleColor outerLc)
         {
+            // Outer left border
+            ApplyColors(bc, outerLc);
+            Console.Write(outerChar);
+
+            // Indent gap between outer border and table
+            if (indent > 0) Console.Write(new string(' ', indent));
+
+            // Table left border
             ApplyColors(bc, lc);
             Console.Write(chars.Side);
 
@@ -914,9 +999,16 @@ namespace bcd
                 Console.Write(' ');
             }
 
+            // Table right border
             Console.ForegroundColor = lc;
-            Console.WriteLine(chars.Side);
+            Console.Write(chars.Side);
+
+            // Right padding gap + outer right border
+            ApplyColors(bc, outerLc);
+            if (rightPad > 0) Console.Write(new string(' ', rightPad));
+            Console.Write(outerChar);
             Console.ResetColor();
+            Console.WriteLine();
         }
 
         private static string BuildTableLine(int[] colWidths, char left, char fill, char join, char right)
@@ -932,7 +1024,7 @@ namespace bcd
             return sb.ToString();
         }
 
-        private int[] ComputeColumnWidths(string[] headers, List<string[]> data, TableOptions opt, int colCount)
+        private int[] ComputeColumnWidths(string[] headers, List<string[]> data, TableOptions opt, int colCount, int maxTableWidth)
         {
             var widths = new int[colCount];
 
@@ -959,7 +1051,7 @@ namespace bcd
             // Clamp total to available width.
             // Line structure: [border] + N * ([sp][col][sp]) + (N-1) * [inner] + [border]
             // = 2 + N*(w+2) + (N-1)   →  overhead = 3*N + 1
-            int maxData = _width - (3 * colCount + 1);
+            int maxData = maxTableWidth - (3 * colCount + 1);
             int total   = 0;
             for (int i = 0; i < colCount; i++) total += widths[i];
 
