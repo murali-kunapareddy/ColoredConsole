@@ -25,4 +25,20 @@ namespace bcd
         Caps       = 2,
         SpacedCaps = 3
     }
+
+    /// <summary>
+    /// ANSI text decoration flags. Combine with the bitwise OR operator.
+    /// Requires a terminal that supports ANSI escape codes (see <see cref="AnsiConsole.IsSupported"/>).
+    /// </summary>
+    [System.Flags]
+    public enum AnsiDecoration
+    {
+        None          = 0,
+        Bold          = 1 << 0,
+        Italic        = 1 << 1,
+        Underline     = 1 << 2,
+        Dim           = 1 << 3,
+        Blink         = 1 << 4,
+        Strikethrough = 1 << 5,
+    }
 }

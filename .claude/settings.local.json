@@ -4,7 +4,8 @@
       "Bash(dotnet build:*)",
       "Bash(dotnet test:*)",
       "Bash(mkdir:*)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Bash(rm -f \"C:\\\\MY_DRIVE\\\\03_PROJECTS\\\\ColoredConsole\\\\ColoredConsole\\\\obj\\\\Debug\\\\netstandard2.0\\\\ColoredConsole.AssemblyInfoInputs.cache\" \"C:\\\\MY_DRIVE\\\\03_PROJECTS\\\\ColoredConsole\\\\ColoredConsole\\\\obj\\\\Release\\\\netstandard2.0\\\\ColoredConsole.AssemblyInfoInputs.cache\" && cd \"C:\\\\MY_DRIVE\\\\03_PROJECTS\\\\ColoredConsole\" && dotnet build ColoredConsole/ColoredConsole.csproj --nologo -q 2>&1)"
     ]
   }
 }

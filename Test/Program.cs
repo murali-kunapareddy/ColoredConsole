@@ -30,12 +30,17 @@ namespace Test
             //  1. WELCOME
             // ═══════════════════════════════════════════════════════════════
 
-            cc.DrawBox("ColoredConsole.NET  ·  User Guide  ·  v2.1");
-            cc.WriteLine();
-            cc.WriteLine("  Welcome! This guide walks through every feature of the library.");
-            cc.WriteLine("  Each section demonstrates a specific API with working examples.");
-            cc.WriteLine();
-            cc.DrawBottomLine();
+            cc.DrawBox2(
+                header: "ColoredConsole.NET · User Guide · V2.1",
+                body: new[] {
+                    "Welcome! This guide walks through every feature of the library.",
+                    "Each section demonstrates a specific API with working examples."
+                },
+                headerDecoration: AnsiDecoration.Bold,
+                headerGradientFrom: (80, 80, 255),
+                headerGradientTo: (255, 80, 80),
+                bodyDecoration: AnsiDecoration.Italic
+            );
 
             Pause();
 
@@ -43,11 +48,12 @@ namespace Test
             //  2. BOX STRUCTURE — TOP / BOTTOM / SEPARATOR
             // ═══════════════════════════════════════════════════════════════
 
-            cc.DrawSectionHeader("2. Box Structure");
-
-            cc.WriteLine("  DrawTopLine() / DrawBottomLine() / DrawSeparator() are the");
-            cc.WriteLine("  building blocks. Compose them freely around any content.");
-            cc.WriteLine();
+            cc.DrawBox("2. Box Structure");
+            cc.DrawTopLine(lineStyle: LineStyle.Single);
+            cc.WriteLine("  DrawTopLine() / DrawBottomLine() / DrawSeparator() are the " +
+                "building blocks. Compose them freely around any content.", 
+                new WriteOptions { LineStyle = LineStyle.Single });
+            cc.DrawBottomLine(lineStyle: LineStyle.Single);
 
             cc.DrawTopLine();
             cc.WriteLine("  First content block");
@@ -100,13 +106,13 @@ namespace Test
 
             cc.DrawTopLine();
             cc.WriteLine("  Left-aligned (default)");
-            cc.WriteLine("Centered text",                  new WriteOptions { TextPosition = TextPosition.Center });
-            cc.WriteLine("Right-aligned text",             new WriteOptions { TextPosition = TextPosition.Right  });
+            cc.WriteLine("Centered text", new WriteOptions { TextPosition = TextPosition.Center });
+            cc.WriteLine("Right-aligned text", new WriteOptions { TextPosition = TextPosition.Right });
             cc.DrawSeparator();
-            cc.WriteLine("No indent (TabStop 0)",          new WriteOptions { TabStop = 0 });
-            cc.WriteLine("One level in (TabStop 1)",       new WriteOptions { TabStop = 1 });
-            cc.WriteLine("Two levels in (TabStop 2)",      new WriteOptions { TabStop = 2 });
-            cc.WriteLine("Three levels in (TabStop 3)",    new WriteOptions { TabStop = 3 });
+            cc.WriteLine("No indent (TabStop 0)", new WriteOptions { TabStop = 0 });
+            cc.WriteLine("One level in (TabStop 1)", new WriteOptions { TabStop = 1 });
+            cc.WriteLine("Two levels in (TabStop 2)", new WriteOptions { TabStop = 2 });
+            cc.WriteLine("Three levels in (TabStop 3)", new WriteOptions { TabStop = 3 });
             cc.DrawSeparator();
             // Word-aware wrapping — long lines are split at word boundaries, never mid-word
             cc.WriteLine("Word-wrap demo — this line is deliberately long to show how the renderer " +
@@ -125,10 +131,10 @@ namespace Test
             cc.WriteLine("  TextStyle transforms text before it is rendered.");
             cc.WriteLine();
             cc.DrawTopLine();
-            cc.WriteLine("none  →  Hello World",      new WriteOptions { TextStyle = TextStyle.None      });
-            cc.WriteLine("caps  →  Hello World",      new WriteOptions { TextStyle = TextStyle.Caps      });
-            cc.WriteLine("spaced  →  Hello World",    new WriteOptions { TextStyle = TextStyle.Spaced    });
-            cc.WriteLine("spacedcaps  →  Hello World",new WriteOptions { TextStyle = TextStyle.SpacedCaps});
+            cc.WriteLine("none  →  Hello World", new WriteOptions { TextStyle = TextStyle.None });
+            cc.WriteLine("caps  →  Hello World", new WriteOptions { TextStyle = TextStyle.Caps });
+            cc.WriteLine("spaced  →  Hello World", new WriteOptions { TextStyle = TextStyle.Spaced });
+            cc.WriteLine("spacedcaps  →  Hello World", new WriteOptions { TextStyle = TextStyle.SpacedCaps });
             cc.DrawBottomLine();
 
             Pause();
@@ -143,23 +149,23 @@ namespace Test
             cc.WriteLine();
             cc.DrawTopLine();
             cc.WriteLine("Default theme foreground");
-            cc.WriteLine("Green text",                        new WriteOptions().Green());
-            cc.WriteLine("Red text",                          new WriteOptions().Red());
-            cc.WriteLine("Yellow text",                       new WriteOptions().Yellow());
-            cc.WriteLine("Cyan text",                         new WriteOptions().Cyan());
-            cc.WriteLine("White text",                        new WriteOptions().White());
-            cc.WriteLine("Dimmed (DarkGray) text",            new WriteOptions().Dimmed());
+            cc.WriteLine("Green text", new WriteOptions().Green());
+            cc.WriteLine("Red text", new WriteOptions().Red());
+            cc.WriteLine("Yellow text", new WriteOptions().Yellow());
+            cc.WriteLine("Cyan text", new WriteOptions().Cyan());
+            cc.WriteLine("White text", new WriteOptions().White());
+            cc.WriteLine("Dimmed (DarkGray) text", new WriteOptions().Dimmed());
             cc.DrawSeparator();
-            cc.WriteLine("Cyan + centered",                   new WriteOptions().Cyan().Centered());
-            cc.WriteLine("Green + right-aligned",             new WriteOptions().Green().RightAligned());
-            cc.WriteLine("Yellow + tabbed(1)",                new WriteOptions().Yellow().Tabbed(1));
-            cc.WriteLine("Red + tabbed(2) + right-aligned",   new WriteOptions().Red().Tabbed(2).RightAligned());
+            cc.WriteLine("Cyan + centered", new WriteOptions().Cyan().Centered());
+            cc.WriteLine("Green + right-aligned", new WriteOptions().Green().RightAligned());
+            cc.WriteLine("Yellow + tabbed(1)", new WriteOptions().Yellow().Tabbed(1));
+            cc.WriteLine("Red + tabbed(2) + right-aligned", new WriteOptions().Red().Tabbed(2).RightAligned());
             cc.DrawSeparator();
-            cc.WriteLine("Caps style",                        new WriteOptions().White().Styled(TextStyle.Caps));
-            cc.WriteLine("Spaced style",                      new WriteOptions().Cyan().Styled(TextStyle.Spaced));
-            cc.WriteLine("SpacedCaps style",                  new WriteOptions().Yellow().Styled(TextStyle.SpacedCaps));
+            cc.WriteLine("Caps style", new WriteOptions().White().Styled(TextStyle.Caps));
+            cc.WriteLine("Spaced style", new WriteOptions().Cyan().Styled(TextStyle.Spaced));
+            cc.WriteLine("SpacedCaps style", new WriteOptions().Yellow().Styled(TextStyle.SpacedCaps));
             cc.DrawSeparator();
-            cc.WriteLine("Custom border color",               new WriteOptions().Green().WithBorder(ConsoleColor.Green));
+            cc.WriteLine("Custom border color", new WriteOptions().Green().WithBorder(ConsoleColor.Green));
             cc.DrawBottomLine();
 
             Pause();
@@ -179,9 +185,9 @@ namespace Test
             cc.WriteInfo("Watching /src for changes...");
             cc.DrawSeparator();
             // With tab stops for nested contexts
-            cc.WriteSuccess("Step 1 passed",   tabStop: 1);
-            cc.WriteSuccess("Step 2 passed",   tabStop: 1);
-            cc.WriteError("Step 3 failed",     tabStop: 1);
+            cc.WriteSuccess("Step 1 passed", tabStop: 1);
+            cc.WriteSuccess("Step 2 passed", tabStop: 1);
+            cc.WriteError("Step 3 failed", tabStop: 1);
             cc.WriteWarning("Continuing anyway", tabStop: 2);
             cc.DrawBottomLine();
 
@@ -202,7 +208,7 @@ namespace Test
             cc.DrawTopLine();
             cc.WriteLine("  Phase 1 — Installation", new WriteOptions().Cyan().Styled(TextStyle.Caps));
             cc.DrawSeparator(LineStyle.Double, LineStyle.Single);
-            cc.WriteLine("Download the SDK",    numbered);
+            cc.WriteLine("Download the SDK", numbered);
             cc.WriteLine("Verify checksum (intentionally long step to demonstrate word-wrap continuing the same numbered item across lines)", numbered);
             cc.WriteLine("Install to /usr/local", numbered);
 
@@ -229,23 +235,23 @@ namespace Test
             cc.WriteLine("  Renders key: value pairs. Key is in accent color, value in foreground.");
             cc.WriteLine();
             cc.DrawTopLine();
-            cc.DrawKeyValue("Host",        "localhost");
-            cc.DrawKeyValue("Port",        "5432");
-            cc.DrawKeyValue("Database",    "production");
-            cc.DrawKeyValue("User",        "admin");
-            cc.DrawKeyValue("SSL",         "enabled");
+            cc.DrawKeyValue("Host", "localhost");
+            cc.DrawKeyValue("Port", "5432");
+            cc.DrawKeyValue("Database", "production");
+            cc.DrawKeyValue("User", "admin");
+            cc.DrawKeyValue("SSL", "enabled");
             cc.DrawSeparator();
             // With tab stop for nesting
-            cc.DrawKeyValue("  Server",   "web-01",         tabStop: 1);
-            cc.DrawKeyValue("  Region",   "us-east-1",      tabStop: 1);
-            cc.DrawKeyValue("  Load",     "23 %",           tabStop: 1);
+            cc.DrawKeyValue("  Server", "web-01", tabStop: 1);
+            cc.DrawKeyValue("  Region", "us-east-1", tabStop: 1);
+            cc.DrawKeyValue("  Load", "23 %", tabStop: 1);
             cc.DrawSeparator();
             // With custom colors
-            cc.DrawKeyValue("Status",     "Online",
-                keyColor:   ConsoleColor.White,
+            cc.DrawKeyValue("Status", "Online",
+                keyColor: ConsoleColor.White,
                 valueColor: ConsoleColor.Green);
-            cc.DrawKeyValue("Errors",     "3",
-                keyColor:   ConsoleColor.White,
+            cc.DrawKeyValue("Errors", "3",
+                keyColor: ConsoleColor.White,
                 valueColor: ConsoleColor.Red);
             cc.DrawBottomLine();
 
@@ -308,30 +314,30 @@ namespace Test
             cc.WriteLine("  Tuple overload — label: value pairs", new WriteOptions().Dimmed());
             cc.DrawSeparator(LineStyle.Double, LineStyle.Dotted);
             cc.WriteColumns(
-                ("CPU",     "72 %"),
-                ("RAM",     "4.2 GB"),
-                ("Disk",    "88 GB free"));
+                ("CPU", "72 %"),
+                ("RAM", "4.2 GB"),
+                ("Disk", "88 GB free"));
             cc.WriteColumns(
-                ("Host",    "localhost"),
-                ("Port",    "5432"),
-                ("DB",      "production"));
+                ("Host", "localhost"),
+                ("Port", "5432"),
+                ("DB", "production"));
             cc.DrawSeparator();
 
             // String array with per-column alignment and foreColor
             cc.WriteLine("  String array — custom alignment + foreground color per column", new WriteOptions().Dimmed());
             cc.DrawSeparator(LineStyle.Double, LineStyle.Dotted);
             cc.WriteColumns(
-                values:     new[] { "Name",    "Status",   "Score"  },
+                values: new[] { "Name", "Status", "Score" },
                 alignments: new[] { TextPosition.Left, TextPosition.Center, TextPosition.Right },
                 foreColors: new[] { ConsoleColor.White, ConsoleColor.Yellow, ConsoleColor.Cyan });
             cc.WriteColumns(
-                values:     new[] { "Alice",   "Pass",     "98"     },
+                values: new[] { "Alice", "Pass", "98" },
                 alignments: new[] { TextPosition.Left, TextPosition.Center, TextPosition.Right });
             cc.WriteColumns(
-                values:     new[] { "Bob",     "Fail",     "42"     },
+                values: new[] { "Bob", "Fail", "42" },
                 alignments: new[] { TextPosition.Left, TextPosition.Center, TextPosition.Right });
             cc.WriteColumns(
-                values:     new[] { "Carol",   "Pass",     "87"     },
+                values: new[] { "Carol", "Pass", "87" },
                 alignments: new[] { TextPosition.Left, TextPosition.Center, TextPosition.Right });
             cc.DrawBottomLine();
 
@@ -378,9 +384,9 @@ namespace Test
                 },
                 options: new TableOptions
                 {
-                    Style             = TableStyle.AllSingle,
+                    Style = TableStyle.AllSingle,
                     ShowRowSeparators = true,
-                    ColumnAlignments  = new[] { TextPosition.Left,
+                    ColumnAlignments = new[] { TextPosition.Left,
                                                 TextPosition.Right,
                                                 TextPosition.Right }
                 });
@@ -429,7 +435,7 @@ namespace Test
             cc.WriteLine("  Center", new WriteOptions().Dimmed());
             cc.DrawTable(tblHeaders, tblRows, new TableOptions
             {
-                Alignment        = TableAlignment.Center,
+                Alignment = TableAlignment.Center,
                 ColumnAlignments = tblOpt.ColumnAlignments
             });
             cc.WriteLine();
@@ -437,7 +443,7 @@ namespace Test
             cc.WriteLine("  Right (2-space gap from right border)", new WriteOptions().Dimmed());
             cc.DrawTable(tblHeaders, tblRows, new TableOptions
             {
-                Alignment        = TableAlignment.Right,
+                Alignment = TableAlignment.Right,
                 ColumnAlignments = tblOpt.ColumnAlignments
             });
             cc.WriteLine();
@@ -445,7 +451,7 @@ namespace Test
             cc.WriteLine("  Justified (columns expand to full width; 2-space gap each side)", new WriteOptions().Dimmed());
             cc.DrawTable(tblHeaders, tblRows, new TableOptions
             {
-                Alignment        = TableAlignment.Justified,
+                Alignment = TableAlignment.Justified,
                 ColumnAlignments = tblOpt.ColumnAlignments
             });
 
@@ -484,7 +490,7 @@ namespace Test
                 },
                 options: new TableOptions
                 {
-                    ColumnWidths     = new[] { 18, 22, 6 },
+                    ColumnWidths = new[] { 18, 22, 6 },
                     ColumnAlignments = new[] { TextPosition.Left,
                                                TextPosition.Center,
                                                TextPosition.Center }
@@ -504,15 +510,15 @@ namespace Test
 
             cc.DrawBox("Default — SpacedCaps centered");
             cc.DrawBox("Single line style",
-                lineStyle:    LineStyle.Single,
+                lineStyle: LineStyle.Single,
                 textPosition: TextPosition.Left);
             cc.DrawBox("Right-aligned title",
                 textPosition: TextPosition.Right,
-                textStyle:    TextStyle.None,
-                foreColor:    ConsoleColor.Cyan);
+                textStyle: TextStyle.None,
+                foreColor: ConsoleColor.Cyan);
             cc.DrawBox("Plain text — TextStyle.None",
                 textStyle: TextStyle.None,
-                foreColor:  ConsoleColor.White);
+                foreColor: ConsoleColor.White);
 
             Pause();
 
@@ -542,7 +548,7 @@ namespace Test
 
             cc.DrawSectionHeader("Dotted line header",
                 lineStyle: LineStyle.Dotted,
-                foreColor:  ConsoleColor.Cyan);
+                foreColor: ConsoleColor.Cyan);
             cc.WriteLine("  Content");
             cc.DrawBottomLine();
 
@@ -588,11 +594,11 @@ namespace Test
             // Custom theme
             var customTheme = new Theme
             {
-                ForeColor    = ConsoleColor.White,
-                LineColor    = ConsoleColor.Magenta,
-                AccentColor  = ConsoleColor.DarkMagenta,
+                ForeColor = ConsoleColor.White,
+                LineColor = ConsoleColor.Magenta,
+                AccentColor = ConsoleColor.DarkMagenta,
                 SuccessColor = ConsoleColor.Green,
-                ErrorColor   = ConsoleColor.Red
+                ErrorColor = ConsoleColor.Red
             };
             using (var custom = new ColoredConsole(customTheme, width: cc.Width))
             {
@@ -680,7 +686,7 @@ namespace Test
 
             await cc.WriteLineAsync("Line written with WriteLineAsync");
             await cc.WriteLineAsync("Another async line in Cyan", new WriteOptions().Cyan());
-            await cc.WriteLineAsync("Right-aligned async line",   new WriteOptions().Yellow().RightAligned());
+            await cc.WriteLineAsync("Right-aligned async line", new WriteOptions().Yellow().RightAligned());
             await cc.WriteAsync("Write (no newline) — cursor repositions for animation");
             // WriteAsync is animation-safe (cursor goes back to start of line)
             // Follow up with a proper WriteLine to advance past it
@@ -777,13 +783,13 @@ namespace Test
 
             // Show the log file location
             var logFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Log");
-            var logFiles  = Directory.Exists(logFolder)
+            var logFiles = Directory.Exists(logFolder)
                 ? Directory.GetFiles(logFolder, "*.log")
                 : Array.Empty<string>();
 
             cc.DrawTopLine();
             cc.DrawKeyValue("Log folder", logFolder);
-            cc.DrawKeyValue("Log files",  logFiles.Length.ToString());
+            cc.DrawKeyValue("Log files", logFiles.Length.ToString());
 
             if (logFiles.Length > 0)
             {
@@ -844,10 +850,10 @@ namespace Test
                 cc.WriteLine("  Text decorations:");
                 cc.DrawSeparator(LineStyle.Double, LineStyle.Dotted);
                 Console.Write("  ");
-                AnsiConsole.Bold();      AnsiConsole.SetForeground(220); Console.Write("Bold  ");       AnsiConsole.Reset();
-                AnsiConsole.Italic();    AnsiConsole.SetForeground(114); Console.Write("Italic  ");     AnsiConsole.Reset();
-                AnsiConsole.Underline(); AnsiConsole.SetForeground(39);  Console.Write("Underline  ");  AnsiConsole.Reset();
-                AnsiConsole.Dim();       AnsiConsole.SetForeground(250); Console.Write("Dim");          AnsiConsole.Reset();
+                AnsiConsole.Bold(); AnsiConsole.SetForeground(220); Console.Write("Bold  "); AnsiConsole.Reset();
+                AnsiConsole.Italic(); AnsiConsole.SetForeground(114); Console.Write("Italic  "); AnsiConsole.Reset();
+                AnsiConsole.Underline(); AnsiConsole.SetForeground(39); Console.Write("Underline "); AnsiConsole.Reset();
+                AnsiConsole.Dim(); AnsiConsole.SetForeground(250); Console.Write("Dim"); AnsiConsole.Reset();
                 Console.WriteLine();
 
                 cc.DrawBottomLine();
@@ -905,11 +911,11 @@ namespace Test
             cc.WriteLine("  Quick reference:", new WriteOptions().Dimmed());
             cc.DrawSeparator(LineStyle.Double, LineStyle.Dotted);
             cc.DrawKeyValue("NuGet package", "ColoredConsole.NET");
-            cc.DrawKeyValue("Namespace",     "bcd");
-            cc.DrawKeyValue("Main class",    "ColoredConsole  (IDisposable)");
-            cc.DrawKeyValue("Themes",        "Theme.Default  |  Theme.Light  |  Theme.Hacker");
-            cc.DrawKeyValue("Table styles",  "DoubleBorderSingleInner  |  AllSingle  |  AllDouble");
-            cc.DrawKeyValue("Alignment",     "Left  |  Center  |  Right  |  Justified");
+            cc.DrawKeyValue("Namespace", "bcd");
+            cc.DrawKeyValue("Main class", "ColoredConsole  (IDisposable)");
+            cc.DrawKeyValue("Themes", "Theme.Default  |  Theme.Light  |  Theme.Hacker");
+            cc.DrawKeyValue("Table styles", "DoubleBorderSingleInner  |  AllSingle  |  AllDouble");
+            cc.DrawKeyValue("Alignment", "Left  |  Center  |  Right  |  Justified");
             cc.DrawBottomLine();
         }
 

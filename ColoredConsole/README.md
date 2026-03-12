@@ -1,107 +1,243 @@
 # ColoredConsole.NET
 
-A richly-formatted console library for C# — colored text, bordered boxes, section headers,
-separators, prompts, progress bars, and optional file logging.
+A richly-formatted, theme-aware console library for C# — bordered boxes, tables, progress bars,
+spinners, ANSI true-color gradients, and file logging.
 
-_Current Version: 2.0.0_ &nbsp;|&nbsp; &copy; 2024-2026 MIT Licensed.
+**Version 2.1.0** &nbsp;|&nbsp; .NET Standard 2.0 &nbsp;|&nbsp; MIT License
 
 ---
 
-## Getting Started
+## Installation
+
+```
+dotnet add package ColoredConsole.NET
+```
 
 ```csharp
 using bcd;
+```
 
-// ColoredConsole is IDisposable — use a using block to flush logs on exit
-using (var cc = new ColoredConsole())
+---
+
+## Quick Start
+
+```csharp
+using var cc = new ColoredConsole();
+
+cc.DrawBox2(
+    header: "My App  ·  v1.0",
+    body: new[] { "Ready to process files.", "Press Enter to continue." },
+    headerDecoration:   AnsiDecoration.Bold,
+    headerGradientFrom: (80, 80, 255),
+    headerGradientTo:   (255, 80, 80),
+    bodyDecoration:     AnsiDecoration.Italic
+);
+
+cc.DrawTopLine();
+cc.WriteSuccess("Build completed in 1.4 s");
+cc.WriteWarning("Config file missing — using defaults");
+cc.WriteError("Connection refused on port 5432");
+cc.WriteInfo("Watching /src for changes...");
+cc.DrawBottomLine();
+```
+
+---
+
+## Boxes
+
+```csharp
+// Single-line box (SpacedCaps, centered by default)
+cc.DrawBox("Section Title");
+cc.DrawBox("Custom", lineStyle: LineStyle.Single, textPosition: TextPosition.Left,
+           textStyle: TextStyle.None, foreColor: ConsoleColor.Cyan);
+
+// Two-section box: header + separator + body
+cc.DrawBox2(
+    header: "Report  ·  2026-03-12",
+    body: new[] { "Summary line one.", "Summary line two." },
+    separatorStyle: LineStyle.Single    // ╟───╢ instead of ╠═══╣
+);
+
+// Manual composition
+cc.DrawTopLine();
+cc.WriteLine("First block");
+cc.DrawSeparator();
+cc.WriteLine("Second block");
+cc.DrawBottomLine();
+```
+
+---
+
+## Line Styles
+
+Four styles for any border or separator. Mix vertical and horizontal independently:
+
+```csharp
+cc.DrawSeparator(LineStyle.Double, LineStyle.Double);  // ╠═══╣  (default)
+cc.DrawSeparator(LineStyle.Double, LineStyle.Single);  // ╟───╢
+cc.DrawSeparator(LineStyle.Double, LineStyle.Dotted);  // ║···║
+cc.DrawSeparator(LineStyle.Double, LineStyle.Dashed);  // ║---║
+```
+
+---
+
+## WriteOptions — fluent builder
+
+```csharp
+// Fluent chain
+cc.WriteLine("Important",  new WriteOptions().Red().Tabbed(1));
+cc.WriteLine("Info",       new WriteOptions().Cyan().Centered());
+cc.WriteLine("Step 1",     new WriteOptions().Green().Numbered());
+cc.WriteLine("Sub-item",   new WriteOptions().Dimmed().RightAligned());
+cc.WriteLine("H E A D E R", new WriteOptions().Yellow().Styled(TextStyle.SpacedCaps));
+```
+
+---
+
+## Semantic Writes
+
+```csharp
+cc.WriteSuccess("Tests passed (169 / 169)");     // ✓  green
+cc.WriteError("Connection refused");              // ✗  red
+cc.WriteWarning("Disk usage above 90 %");         // ⚠  yellow
+cc.WriteInfo("Server listening on :8080");        // ℹ  cyan
+
+cc.WriteSuccess("Nested context", tabStop: 1);
+```
+
+---
+
+## Tables
+
+```csharp
+cc.DrawTable(
+    headers: new[] { "Name", "Role", "Status" },
+    rows: new[]
+    {
+        new[] { "Alice", "Developer", "Active" },
+        new[] { "Bob",   "Designer",  "Active" }
+    },
+    options: new TableOptions
+    {
+        Style             = TableStyle.DoubleBorderSingleInner,  // default
+        Alignment         = TableAlignment.Justified,
+        ColumnAlignments  = new[] { TextPosition.Left, TextPosition.Left, TextPosition.Center },
+        ShowRowSeparators = true
+    });
+```
+
+| `TableStyle` | Outer | Inner |
+|---|---|---|
+| `DoubleBorderSingleInner` | `╔═╗` | `│` |
+| `AllDouble` | `╔═╦═╗` | `║` |
+| `AllSingle` | `┌─┬─┐` | `│` |
+
+`TableAlignment`: `Left` · `Center` · `Right` · `Justified`
+
+---
+
+## Columns, Lists, Key-Value
+
+```csharp
+// Side-by-side columns
+cc.WriteColumns(("CPU", "72 %"), ("RAM", "4.2 GB"), ("Disk", "88 GB free"));
+cc.WriteColumns(
+    values:     new[] { "Name", "Score" },
+    alignments: new[] { TextPosition.Left, TextPosition.Right });
+
+// Bullet list
+cc.DrawList("Dependencies", new[] { "Newtonsoft.Json 13.0", "Dapper 2.1" });
+cc.DrawList(null, items, bullet: '➤', foreColor: ConsoleColor.Cyan);
+
+// Key: value
+cc.DrawKeyValue("Host",   "localhost");
+cc.DrawKeyValue("Status", "Online", valueColor: ConsoleColor.Green);
+```
+
+---
+
+## DrawSectionHeader
+
+Embeds text in a separator-style line with surrounding blank lines:
+
+```csharp
+cc.DrawSectionHeader("Configuration");
+cc.DrawSectionHeader("Results", textPosition: TextPosition.Center);
+cc.DrawSectionHeader("Notes",   lineStyle: LineStyle.Dotted);
+```
+
+---
+
+## ANSI — 256-color, True-color & Decorations
+
+### AnsiDecoration flags (for DrawBox2)
+
+```csharp
+cc.DrawBox2(
+    header: "Dashboard",
+    body: new[] { "All systems nominal." },
+    headerDecoration:   AnsiDecoration.Bold | AnsiDecoration.Underline,
+    headerGradientFrom: (0, 200, 100),
+    headerGradientTo:   (0, 80, 255),
+    bodyDecoration:     AnsiDecoration.Italic
+);
+```
+
+Flags: `Bold` · `Italic` · `Underline` · `Dim` · `Blink` · `Strikethrough`
+
+### AnsiConsole (standalone)
+
+```csharp
+if (AnsiConsole.IsSupported)
 {
-    cc.DrawBox("My Application");
+    AnsiConsole.SetForeground(214);                           // 256-color orange
+    AnsiConsole.Write("Status", r: 0, g: 200, b: 100);       // true-color RGB
 
-    cc.DrawTopLine();
-    cc.WriteLine("Some header text");
-    cc.DrawSeparator();
-    cc.WriteLine("Body text");
-    cc.DrawBottomLine();
+    AnsiConsole.WriteGradient("ColoredConsole.NET",
+        from: (255, 80, 0), to: (0, 120, 255));              // horizontal gradient
+
+    AnsiConsole.Bold(); AnsiConsole.SetForeground(220);
+    Console.Write("Important");
+    AnsiConsole.Reset();
 }
 ```
 
 ---
 
-## Theming
-
-Pass a built-in preset or a custom `Theme` to the constructor:
+## Themes
 
 ```csharp
-var cc = new ColoredConsole(Theme.Hacker);   // black + green + cyan
-var cc = new ColoredConsole(Theme.Light);    // white background, dark text
-var cc = new ColoredConsole(Theme.Default);  // black + white + yellow borders
+new ColoredConsole(Theme.Default)    // dark background, white text, yellow borders
+new ColoredConsole(Theme.Light)      // white background, dark text
+new ColoredConsole(Theme.Hacker)     // black background, green borders, cyan accents
 
-// Custom theme
-var myTheme = new Theme
+new ColoredConsole(new Theme
 {
-    BackColor   = ConsoleColor.DarkBlue,
-    ForeColor   = ConsoleColor.White,
-    LineColor   = ConsoleColor.Cyan,
-    AccentColor = ConsoleColor.Yellow
-};
-var cc = new ColoredConsole(myTheme);
+    ForeColor    = ConsoleColor.White,
+    LineColor    = ConsoleColor.Magenta,
+    AccentColor  = ConsoleColor.DarkMagenta,
+    SuccessColor = ConsoleColor.Green,
+    ErrorColor   = ConsoleColor.Red
+})
 ```
 
 ---
 
-## WriteOptions
-
-Every write method accepts an optional `WriteOptions` object. Any property left `null`
-falls back to the active theme default.
+## Spinner and ProgressBar
 
 ```csharp
-cc.WriteLine("Important!", new WriteOptions
+// Indeterminate — Braille dot animation
+using (var spinner = new Spinner(cc, "Connecting..."))
 {
-    ForeColor  = ConsoleColor.Red,
-    TextStyle  = TextStyle.Caps,
-    TabStop    = 1
-});
-```
+    await DoWorkAsync();
+    spinner.UpdateMessage("Running migrations...");
+    await MigrateAsync();
+    spinner.Complete("Database ready");                   // ✓
+    // spinner.Complete("Failed", success: false);        // ✗
+}
 
-| Property | Type | Description |
-|---|---|---|
-| `LineStyle` | `LineStyle?` | Border style: `Dotted`, `Dashed`, `Single`, `Double` |
-| `TextPosition` | `TextPosition?` | `Left`, `Center`, `Right` |
-| `TabStop` | `int` | 4-space indents from inner left border |
-| `AutoNumber` | `bool` | Prefix with auto-incrementing counter |
-| `TextStyle` | `TextStyle?` | `None`, `Spaced`, `Caps`, `SpacedCaps` |
-| `BackColor` | `ConsoleColor?` | Background color |
-| `ForeColor` | `ConsoleColor?` | Text color |
-| `LineColor` | `ConsoleColor?` | Border color |
-
----
-
-## Section Headers
-
-```csharp
-cc.DrawSectionHeader("Configuration");
-cc.WriteLine("key = value", new WriteOptions { TabStop = 1 });
-```
-
----
-
-## Auto-Numbering
-
-```csharp
-cc.DrawSectionHeader("Steps");
-cc.WriteLine("Install dependencies",  new WriteOptions { AutoNumber = true });
-cc.WriteLine("Configure environment", new WriteOptions { AutoNumber = true });
-cc.WriteLine("Run the application",   new WriteOptions { AutoNumber = true });
-cc.ResetAutoNumber(); // reset counter back to 0
-```
-
----
-
-## Progress Bar
-
-```csharp
-cc.WriteLine("Processing...");
-using (var pb = new ProgressBar(cc))          // pass cc for consistent width/theme
+// Determinate — call Report(0.0–1.0) from any thread
+using (var pb = new ProgressBar(cc))
 {
     for (int i = 0; i <= 100; i++)
     {
@@ -116,24 +252,66 @@ using (var pb = new ProgressBar(cc))          // pass cc for consistent width/th
 ## File Logging
 
 ```csharp
-using (var cc = new ColoredConsole())
-{
-    cc.EnableLogging("Logs");         // creates Logs/yy-MM-dd.log, appends each session
-    cc.WriteLine("Application started");
-    cc.WriteLog("Custom log entry");  // raw log write (no console output)
-}                                     // Dispose() flushes and closes the log file
+using var cc = new ColoredConsole();
+cc.EnableLogging("Logs");                              // Logs/yyyy-MM-dd.log, append mode
+cc.WriteLine("Started");                               // auto-logged
+cc.WriteLog("Raw entry — no console output");
+
+// Custom timestamp format
+cc.EnableLogging("Logs", msg => $"{DateTime.UtcNow:O} | {msg}");
+// Dispose() flushes and closes the file
 ```
+
+---
+
+## Other Features
+
+```csharp
+// Async writes
+await cc.WriteLineAsync("Connecting...", new WriteOptions().Cyan());
+await cc.WriteAsync("Tick ");
+
+// Resize
+cc.Resize();          // re-reads Console.WindowWidth
+cc.Resize(80);        // explicit width (clamped 40–120)
+
+// ASCII mode — replaces ╔═║… with + - |
+cc.SetAsciiMode(true);
+var cc2 = new ColoredConsole(asciiMode: true);
+
+// Prompt
+var input = cc.Prompt("Enter your name:");
+
+// Auto-numbering
+cc.WriteLine("First step",  new WriteOptions { AutoNumber = true });
+cc.WriteLine("Second step", new WriteOptions { AutoNumber = true });
+cc.ResetAutoNumber();
+```
+
+---
+
+## Constructor
+
+```csharp
+new ColoredConsole(
+    theme:     Theme.Default,  // theme preset or custom Theme
+    width:     0,              // 0 = auto-detect (clamped 40–120)
+    asciiMode: false           // true = ASCII box chars
+)
+```
+
+`ColoredConsole` is `IDisposable` — always use `using` to flush the log file.
 
 ---
 
 ## Change Log
 
-| Date | Version | Description |
-|---|---|---|
-| 2020-09-10 | 1.0.0 | Initial version |
-| 2023-02-20 | 1.0.1 | `DrawSeparator` updated |
-| 2023-02-21 | 1.0.2 | `Prompt` feature added |
-| 2023-03-15 | 1.0.3 | `ProgressBar` added |
-| 2023-03-26 | 1.0.4 | File logging added |
-| 2024-09-24 | 1.0.5 | `ProgressBar` updated; `AutoNumber` added |
-| 2026-03-09 | **2.0.0** | **Breaking:** namespace renamed `bcd`; `Theme` and `WriteOptions` types; `DrawSectionHeader` replaces `DrawSeparator(string)`; `IDisposable` logging with `StreamWriter` (no more per-line file open); word-aware text wrapping; auto-detect console width; thread-safe counter; multiple bug fixes |
+| Version | Notes |
+|---|---|
+| **2.1.0** | `DrawTable`, `WriteColumns`, `Spinner`, semantic writes, async, fluent `WriteOptions`, `DrawKeyValue`, `DrawList`, `AnsiConsole`, `DrawBox2` with `AnsiDecoration`, configurable log formatter, `Resize`, ASCII mode, 169 unit tests |
+| **2.0.0** | Breaking: namespace `bcd`; `Theme`; `WriteOptions`; `DrawSectionHeader`; `IDisposable` logging; word-wrap; auto-width |
+| 1.0.x | Initial releases (2020–2024) |
+
+---
+
+MIT © 2024-2026

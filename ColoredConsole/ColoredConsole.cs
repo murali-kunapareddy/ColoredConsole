@@ -297,6 +297,72 @@ namespace bcd
             DrawBottomLine(ls, bc, lc);
         }
 
+        /// <summary>
+        /// Draws a two-section box: a styled header, an inner separator, and one or more body lines.
+        /// </summary>
+        /// <param name="header">Title text for the top section.</param>
+        /// <param name="body">Body lines displayed below the separator.</param>
+        /// <param name="lineStyle">Outer border style (defaults to theme).</param>
+        /// <param name="separatorStyle">Horizontal fill style for the inner separator (defaults to <paramref name="lineStyle"/>).</param>
+        /// <param name="headerPosition">Alignment for the header text.</param>
+        /// <param name="headerStyle">Text style for the header.</param>
+        /// <param name="headerDecoration">ANSI decorations (Bold, Italic, Underline, …) for the header text.</param>
+        /// <param name="headerGradientFrom">Start RGB color for a horizontal gradient on the header. Ignored when ANSI is unsupported.</param>
+        /// <param name="headerGradientTo">End RGB color for the header gradient. Both <paramref name="headerGradientFrom"/> and this must be set to activate gradient.</param>
+        /// <param name="bodyPosition">Alignment for body lines.</param>
+        /// <param name="bodyStyle">Text style for body lines.</param>
+        /// <param name="bodyDecoration">ANSI decorations for body text.</param>
+        /// <param name="bodyTabStop">Tab indent for body lines.</param>
+        /// <param name="backColor">Background color (defaults to theme).</param>
+        /// <param name="headerForeColor">Header text color (defaults to theme accent). Ignored when gradient is active.</param>
+        /// <param name="bodyForeColor">Body text color (defaults to theme foreground).</param>
+        /// <param name="lineColor">Border color (defaults to theme).</param>
+        public void DrawBox2(
+            string                    header,
+            string[]                  body,
+            LineStyle?                lineStyle           = null,
+            LineStyle?                separatorStyle      = null,
+            TextPosition              headerPosition      = TextPosition.Center,
+            TextStyle                 headerStyle         = TextStyle.SpacedCaps,
+            AnsiDecoration            headerDecoration    = AnsiDecoration.None,
+            (byte R, byte G, byte B)? headerGradientFrom  = null,
+            (byte R, byte G, byte B)? headerGradientTo    = null,
+            TextPosition              bodyPosition        = TextPosition.Left,
+            TextStyle                 bodyStyle           = TextStyle.None,
+            AnsiDecoration            bodyDecoration      = AnsiDecoration.None,
+            int                       bodyTabStop         = 0,
+            ConsoleColor?             backColor           = null,
+            ConsoleColor?             headerForeColor     = null,
+            ConsoleColor?             bodyForeColor       = null,
+            ConsoleColor?             lineColor           = null)
+        {
+            var ls  = lineStyle       ?? _theme.LineStyle;
+            var sep = separatorStyle  ?? ls;
+            var bc  = backColor       ?? _theme.BackColor;
+            var hfc = headerForeColor ?? _theme.AccentColor;
+            var bfc = bodyForeColor   ?? _theme.ForeColor;
+            var lc  = lineColor       ?? _theme.LineColor;
+
+            var headerRenderer = BuildTextRenderer(hfc, headerDecoration, headerGradientFrom, headerGradientTo);
+            var bodyRenderer   = BuildTextRenderer(bfc, bodyDecoration,   null,               null);
+
+            DrawTopLine(ls, bc, lc);
+            RenderLine(header, ls, headerPosition, 0, false, headerStyle, bc, hfc, lc, headerRenderer);
+
+            // Inner separator — vertical joiners match outer box style; horizontal fill is configurable
+            ApplyColors(bc, lc);
+            Console.WriteLine(_asciiMode
+                ? $"+{new string('-', _width - 2)}+"
+                : BuildSeparatorLine(ls, sep));
+            Console.ResetColor();
+
+            if (body != null)
+                foreach (var line in body)
+                    RenderLine(line ?? string.Empty, ls, bodyPosition, bodyTabStop, false, bodyStyle, bc, bfc, lc, bodyRenderer);
+
+            DrawBottomLine(ls, bc, lc);
+        }
+
         #endregion
 
         #region ──── PROMPT ────
@@ -726,8 +792,14 @@ namespace bcd
         }
 
         /// <summary>Renders a bordered line followed by a newline.</summary>
+        /// <param name="textRenderer">
+        /// Optional custom text writer. When non-null, called with the formatted string instead of the
+        /// default <c>Console.ForegroundColor + Write</c> path — use this to inject ANSI decorations or gradients.
+        /// The renderer is responsible for writing the text; color reset is handled by the caller.
+        /// </param>
         private void RenderLine(string msg, LineStyle ls, TextPosition tp, int tab, bool an,
-            TextStyle ts, ConsoleColor bc, ConsoleColor fc, ConsoleColor lc)
+            TextStyle ts, ConsoleColor bc, ConsoleColor fc, ConsoleColor lc,
+            Action<string> textRenderer = null)
         {
             msg = msg?.Trim() ?? string.Empty;
 
@@ -742,8 +814,13 @@ namespace bcd
                 var lr = BorderChar(ls);
                 ApplyColors(bc, lc);
                 Console.Write($"{lr} ");
-                Console.ForegroundColor = fc;
-                Console.Write(FormatMessage(msg, tp, tab, ts));
+                if (textRenderer != null)
+                    textRenderer(FormatMessage(msg, tp, tab, ts));
+                else
+                {
+                    Console.ForegroundColor = fc;
+                    Console.Write(FormatMessage(msg, tp, tab, ts));
+                }
                 Console.ForegroundColor = lc;
                 Console.WriteLine($" {lr}");
                 Console.ResetColor();
@@ -755,9 +832,83 @@ namespace bcd
                 bool first = true;
                 foreach (var chunk in chunks)
                 {
-                    RenderLine(chunk, ls, tp, first ? tab : tab + 1, false, ts, bc, fc, lc);
+                    RenderLine(chunk, ls, tp, first ? tab : tab + 1, false, ts, bc, fc, lc, textRenderer);
                     first = false;
                 }
+            }
+        }
+
+        /// <summary>
+        /// Builds an <c>Action&lt;string&gt;</c> text renderer that applies ANSI decorations and/or a
+        /// gradient to the formatted text string inside a bordered line.
+        /// Returns <c>null</c> when ANSI is unsupported or no effects are requested, causing
+        /// <see cref="RenderLine"/> to fall back to the standard <c>Console.ForegroundColor</c> path.
+        /// </summary>
+        private static Action<string> BuildTextRenderer(
+            ConsoleColor                    fc,
+            AnsiDecoration                  decoration,
+            (byte R, byte G, byte B)?       gradientFrom,
+            (byte R, byte G, byte B)?       gradientTo)
+        {
+            bool hasDecoration = decoration != AnsiDecoration.None;
+            bool hasGradient   = gradientFrom.HasValue && gradientTo.HasValue;
+
+            if ((!hasDecoration && !hasGradient) || !AnsiConsole.IsSupported)
+                return null;
+
+            return text =>
+            {
+                if (hasDecoration)
+                {
+                    if ((decoration & AnsiDecoration.Bold)          != 0) AnsiConsole.Bold();
+                    if ((decoration & AnsiDecoration.Italic)        != 0) AnsiConsole.Italic();
+                    if ((decoration & AnsiDecoration.Underline)     != 0) AnsiConsole.Underline();
+                    if ((decoration & AnsiDecoration.Dim)           != 0) AnsiConsole.Dim();
+                    if ((decoration & AnsiDecoration.Blink)         != 0) AnsiConsole.Blink();
+                    if ((decoration & AnsiDecoration.Strikethrough) != 0) AnsiConsole.Strikethrough();
+                }
+
+                if (hasGradient)
+                {
+                    // WriteGradient sets per-char RGB via ANSI (doesn't clear prior decorations)
+                    // and calls AnsiConsole.Reset() at the end
+                    AnsiConsole.WriteGradient(text, gradientFrom.Value, gradientTo.Value);
+                }
+                else
+                {
+                    // Use ANSI to set color — Console.ForegroundColor (Win32 API) would wipe ANSI state
+                    AnsiConsole.SetForeground(ConsoleColorToAnsi256(fc));
+                    Console.Write(text);
+                    AnsiConsole.Reset();  // clear decorations; caller re-sets line color afterwards
+                }
+            };
+        }
+
+        /// <summary>
+        /// Maps a <see cref="ConsoleColor"/> to the equivalent ANSI 256-color palette index (0–15).
+        /// Used when applying decorations so the color stays in ANSI space and isn't cleared by
+        /// the Win32 <c>Console.ForegroundColor</c> setter.
+        /// </summary>
+        private static int ConsoleColorToAnsi256(ConsoleColor c)
+        {
+            switch (c)
+            {
+                case ConsoleColor.Black:       return 0;
+                case ConsoleColor.DarkRed:     return 1;
+                case ConsoleColor.DarkGreen:   return 2;
+                case ConsoleColor.DarkYellow:  return 3;
+                case ConsoleColor.DarkBlue:    return 4;
+                case ConsoleColor.DarkMagenta: return 5;
+                case ConsoleColor.DarkCyan:    return 6;
+                case ConsoleColor.Gray:        return 7;
+                case ConsoleColor.DarkGray:    return 8;
+                case ConsoleColor.Red:         return 9;
+                case ConsoleColor.Green:       return 10;
+                case ConsoleColor.Yellow:      return 11;
+                case ConsoleColor.Blue:        return 12;
+                case ConsoleColor.Magenta:     return 13;
+                case ConsoleColor.Cyan:        return 14;
+                default:                       return 15; // White
             }
         }
 
