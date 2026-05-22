@@ -105,8 +105,7 @@ namespace bcd
             {
                 if (_disposed) return;
 
-                double progress = BitConverter.Int64BitsToDouble(
-                    Interlocked.Read(ref _progressBits));
+                double progress = BitConverter.Int64BitsToDouble(_progressBits);
 
                 int filled  = (int)(progress * BlockCount);
                 int percent = (int)(progress * 100);

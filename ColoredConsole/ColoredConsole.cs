@@ -38,7 +38,7 @@ namespace bcd
         private const char SGL_TR   = '┐';
         private const char SGL_LR   = '│';
         private const char SGL_LJ   = '├';
-        private const char SGL_RJ   = '┤';   // BUG FIX: original code used SGL_LJ here too
+        private const char SGL_RJ   = '┤';
         private const char SGL_TB   = '─';
         private const char SGL_BL   = '└';
         private const char SGL_BR   = '┘';
@@ -351,9 +351,7 @@ namespace bcd
 
             // Inner separator — vertical joiners match outer box style; horizontal fill is configurable
             ApplyColors(bc, lc);
-            Console.WriteLine(_asciiMode
-                ? $"+{new string('-', _width - 2)}+"
-                : BuildSeparatorLine(ls, sep));
+            Console.WriteLine(BuildSeparatorLine(ls, sep));
             Console.ResetColor();
 
             if (body != null)
@@ -462,8 +460,8 @@ namespace bcd
             Console.ForegroundColor = vc;
 
             // Fill rest of line
-            var content      = $"{key}: {value}";
-            var padded       = value.PadRight(_availableWidth - tabStop * 4 - content.Length + value.Length);
+            int contentLen   = key.Length + 2 + value.Length;
+            var padded       = value.PadRight(_availableWidth - tabStop * 4 - contentLen + value.Length);
             Console.Write(padded);
 
             Console.ForegroundColor = o.LineColor;
@@ -491,30 +489,31 @@ namespace bcd
 
             var color = foreColor ?? _theme.ForeColor;
             var effectiveBullet = _asciiMode ? '-' : bullet;
+            var opts = new WriteOptions { ForeColor = color, TabStop = tabStop };
 
             foreach (var item in items)
-                WriteLine($"{effectiveBullet} {item}", new WriteOptions { ForeColor = color, TabStop = tabStop });
+                WriteLine($"{effectiveBullet} {item}", opts);
         }
 
         #endregion
 
         #region ──── WRITE: SEMANTIC ────
 
-        /// <summary>Writes a success message prefixed with ✓ in the theme's success color.</summary>
+        /// <summary>Writes a success message prefixed with ✓ (or + in ASCII mode) in the theme's success color.</summary>
         public void WriteSuccess(string message, int tabStop = 0)
-            => WriteLine($"✓ {message}", new WriteOptions { ForeColor = _theme.SuccessColor, TabStop = tabStop });
+            => WriteLine($"{(_asciiMode ? "+" : "✓")} {message}", new WriteOptions { ForeColor = _theme.SuccessColor, TabStop = tabStop });
 
-        /// <summary>Writes an error message prefixed with ✗ in the theme's error color.</summary>
+        /// <summary>Writes an error message prefixed with ✗ (or x in ASCII mode) in the theme's error color.</summary>
         public void WriteError(string message, int tabStop = 0)
-            => WriteLine($"✗ {message}", new WriteOptions { ForeColor = _theme.ErrorColor, TabStop = tabStop });
+            => WriteLine($"{(_asciiMode ? "x" : "✗")} {message}", new WriteOptions { ForeColor = _theme.ErrorColor, TabStop = tabStop });
 
-        /// <summary>Writes a warning message prefixed with ⚠ in the theme's warning color.</summary>
+        /// <summary>Writes a warning message prefixed with ⚠ (or ! in ASCII mode) in the theme's warning color.</summary>
         public void WriteWarning(string message, int tabStop = 0)
-            => WriteLine($"⚠ {message}", new WriteOptions { ForeColor = _theme.WarningColor, TabStop = tabStop });
+            => WriteLine($"{(_asciiMode ? "!" : "⚠")} {message}", new WriteOptions { ForeColor = _theme.WarningColor, TabStop = tabStop });
 
-        /// <summary>Writes an informational message prefixed with ℹ in the theme's info color.</summary>
+        /// <summary>Writes an informational message prefixed with ℹ (or i in ASCII mode) in the theme's info color.</summary>
         public void WriteInfo(string message, int tabStop = 0)
-            => WriteLine($"ℹ {message}", new WriteOptions { ForeColor = _theme.InfoColor, TabStop = tabStop });
+            => WriteLine($"{(_asciiMode ? "i" : "ℹ")} {message}", new WriteOptions { ForeColor = _theme.InfoColor, TabStop = tabStop });
 
         #endregion
 
@@ -958,7 +957,7 @@ namespace bcd
             else if (vls == LineStyle.Double && hls == LineStyle.Dotted) { left = DBL_LR;   fill = DOT_TB; right = DBL_LR;   }
             else if (vls == LineStyle.Double && hls == LineStyle.Dashed) { left = DBL_LR;   fill = DSH_TB; right = DBL_LR;   }
             else if (vls == LineStyle.Single && hls == LineStyle.Double) { left = MIX_SLDJ; fill = DBL_TB; right = MIX_SRDJ; }
-            else if (vls == LineStyle.Single && hls == LineStyle.Single) { left = SGL_LJ;   fill = SGL_TB; right = SGL_RJ;   } // BUG FIX: was SGL_LJ on right
+            else if (vls == LineStyle.Single && hls == LineStyle.Single) { left = SGL_LJ;   fill = SGL_TB; right = SGL_RJ;   }
             else if (vls == LineStyle.Single && hls == LineStyle.Dotted) { left = SGL_LR;   fill = DOT_TB; right = SGL_LR;   }
             else                                                          { left = SGL_LR;   fill = DSH_TB; right = SGL_LR;   } // Single + Dashed
         }
@@ -982,7 +981,6 @@ namespace bcd
             var body   = $"{prefix} {text} ";
             var padLen = _availableWidth - body.Length;
 
-            // BUG FIX: use padLen as additional chars, guard against negative
             return padLen > 0
                 ? body + new string(fill, padLen)
                 : body.Substring(0, Math.Min(body.Length, _availableWidth));
@@ -1169,7 +1167,7 @@ namespace bcd
             for (int i = 0; i < colWidths.Length; i++)
             {
                 if (i > 0) sb.Append(join);
-                sb.Append(new string(fill, colWidths[i] + 2)); // +2 for the padding spaces
+                sb.Append(fill, colWidths[i] + 2); // +2 for the padding spaces
             }
             sb.Append(right);
             return sb.ToString();
